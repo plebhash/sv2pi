@@ -1,0 +1,6 @@
+.sv2pi/
+worktrees/
+*.swp
+*.swo
+.DS_Store
+.ssh/
