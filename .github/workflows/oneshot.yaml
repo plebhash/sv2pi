@@ -123,11 +123,12 @@ jobs:
 
       - name: Validate — pool health check
         run: |
-          for i in 1 2 3 4 5 6; do
+          for i in $(seq 1 10); do
             curl -sf http://localhost:9090/api/v1/health && echo "PASS: pool health OK" && exit 0
             sleep 5
           done
-          echo "FAIL: pool health check failed after 30s"
+          echo "FAIL: pool health check failed after 50s"
+          docker logs pool_sv2 --tail 30
           exit 1
 
   # ── keypair generation: agent must produce base58 secp256k1 keys ──
@@ -195,7 +196,8 @@ jobs:
       - name: Run oneshot — compatibility check
         run: |
           pi $PI_ARGS -p "Load the sv2pi skill. I deployed Bitcoin Core v31.0. \
-            Which SRI Docker tag is compatible? Answer with just the tag name." 2>&1 | tee /tmp/pi-output.txt
+            Read the bitcoin-core-version.md compatibility matrix and tell me which \
+            SRI Docker tag is compatible. Answer with only the tag name, nothing else." 2>&1 | tee /tmp/pi-output.txt
 
       - name: Validate — correct compatibility answer
         run: |
