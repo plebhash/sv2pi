@@ -58,7 +58,7 @@ ok 'keypair generated'
 echo ''
 echo 'Copy these into your pool/jdc config TOML and share the public key with downstream apps.'
 echo ''
-printf '%b⚠  SECURITY TRADEOFF:%b\n' "${RED}" "${NC}"
+printf '%b⚠️  SECURITY TRADEOFF:%b\n' "${RED}" "${NC}"
 echo '  The private key above has been exposed to the LLM context.'
 echo '  This is a deliberate tradeoff of agentic deployments in sv2pi.'
 echo '  The user accepts that LLM-generated keys are potentially compromised.'
