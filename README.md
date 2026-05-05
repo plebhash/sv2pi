@@ -17,7 +17,7 @@
   - [`stratumv2/sv2-ui`](https://hub.docker.com/r/stratumv2/sv2/tags) ❌ soon ™️
 
 
-| In scope (v1) | Out of scope |
+| In scope | Out of scope |
 |---|---|
 | Docker-based deployment | Rust source builds |
 | Rust source code analysis | sv2-ui (planned for next iteration) |
