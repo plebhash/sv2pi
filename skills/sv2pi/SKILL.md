@@ -26,7 +26,7 @@ Helper scripts at `{baseDir}/scripts/`. Reference docs at `{baseDir}/references/
 You build a stateful mental model of deployed SRI instances from three sources:
 
 1. **SV2 Protocol Spec** — Understand what each role does and how they connect. See `{baseDir}/references/sv2-spec-overview.md`.
-2. **Log Observation** — Read container logs with `docker logs <container>`. Compare log messages against the source code at the deployed tag (cloned at `~/.cache/sv2pi/sv2-apps-{tag}/`).
+2. **Log Observation** — Analyze the source code first to understand log format and error patterns, then grep logs for those patterns. NEVER load entire log files into context — they are too large and will burn tokens. Always use `--tail N` or pipe through `grep`.
 3. **HTTP API Probing** — Probe monitoring endpoints described in `{baseDir}/references/sv2-apps/monitoring-api.md`. This provides real-time hashrate, channel count, connected clients, shares accepted, and block data.
 
 Use all three sources together. Logs give operational detail. APIs give quantitative state. Source code gives authoritative semantics.
@@ -177,22 +177,26 @@ export BITCOIN_IPC_PATH   # use the path it outputs
 
 ### Step 5 — Deploy Pool (with embedded JDS)
 
+If the user has already reviewed the config templates (Step 2) and agrees to use defaults, deploy directly:
+
 ```bash
 bash {baseDir}/scripts/deploy-pool.sh $DEPLOY_TAG $BITCOIN_IPC_PATH
 ```
 
-This:
-- Creates `~/.sv2pi/pool/config/` and writes `pool-config.toml`
-- Mounts Bitcoin IPC socket as read-only volume
-- Exposes port 3333 (stratum), 3334 (JDS), 9090 (monitoring)
-- Starts container with `--restart unless-stopped`
+If the user's request is vague (e.g. "deploy a pool"), walk them through each configuration choice from the frozen template, offering the default value each time. Key parameters:
 
-After deployment, verify:
-```bash
-docker logs pool_sv2 --tail 20
-curl -s http://localhost:9090/api/v1/health
-curl -s http://localhost:9090/api/v1/server
-```
+| Parameter | Default | Ask |
+|---|---|---|
+| `coinbase_reward_script` | `addr(...)` placeholder | "What payout address?" |
+| `listen_address` | `0.0.0.0:3333` | "Stratum port? (default 3333)" |
+| `JDS listen_address` | `0.0.0.0:3334` | "JDS port? (default 3334)" |
+| `shares_per_minute` | `6.0` | "Target shares/minute? (default 6)" |
+| `pool_signature` | `SRI Mainnet Pool` | "Pool signature string?" |
+| Authority keypair | hardcoded example | Warn: "Replace with your own keypair for production" |
+
+Never ask about ports/values the user already specified. If the user says "use defaults", deploy immediately.
+
+After the script succeeds, move to Step 6. Do NOT probe the deployment.
 
 ### Step 6 — Deploy JD Client
 
@@ -283,15 +287,29 @@ docker ps -a --filter "name=pool_sv2" --filter "name=jd_client_sv2" --filter "na
 ```
 
 ### 2. Inspect Logs Against Source
+
+**NEVER load entire log files into context.** Logs can be hundreds of MB. Always use source-code-informed grepping.
+
+1. **Analyze source first.** Read the relevant source files at `~/.cache/sv2pi/sv2-apps-$DEPLOY_TAG/` to identify log message formats, error strings, and diagnostic patterns:
+
+| App | Key source paths |
+|---|---|
+| Pool | `pool-apps/pool/src/` |
+| JDC | `miner-apps/jd-client/src/` |
+| Translator | `miner-apps/translator/src/` |
+| Monitoring | `stratum-apps/src/monitoring/` |
+
+2. **Grep with source-derived patterns.** Use the error strings and log patterns found in source code to filter logs:
+
 ```bash
-docker logs pool_sv2 --tail 100
+# Example: grep pool logs for connection errors
+docker logs pool_sv2 --tail 200 | grep -E 'error|Error|ERR|fail|timeout|rejected'
+
+# Example: grep for IPC-related errors
+docker logs pool_sv2 --tail 200 | grep -i 'ipc\|template\|socket'
 ```
 
-Compare log lines against the source code at `~/.cache/sv2pi/sv2-apps-$DEPLOY_TAG/`. Key source files:
-- Pool: `pool-apps/pool/src/`
-- JDC: `miner-apps/jd-client/src/`
-- Translator: `miner-apps/translator/src/`
-- Monitoring: `stratum-apps/src/monitoring/`
+Adjust the `--tail` count based on recency (100 for recent crashes, 500 for broader context). Always pipe through `grep` — never `cat` the raw log output.
 
 ### 3. Check Connectivity
 ```bash

@@ -79,6 +79,8 @@ git branch -d "$FEATURE"   # local
 
 - **NEVER push to GitHub.** Do not run `git push` or any equivalent. The user handles all remote operations.
 
+- **Sign commits when possible.** Use `-S` or `--gpg-sign`. If signing fails (e.g. hardware key unavailable, passphrase prompt), alert the user for human intervention rather than retrying indefinitely.
+
 ## Conventional commits
 
 Follow [Conventional Commits](https://www.conventionalcommits.org/) for the type prefix after the signature. Common types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`.

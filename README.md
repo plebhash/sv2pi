@@ -28,7 +28,7 @@
 ## Install
 
 ```bash
-curl -fsSL https://gist.github.com/plebhash/6b705112e4ff2fc8e9ed2a57a02b1ec8/raw/8cf6b5b5c65b814dc83c4fd134ea88b882f656c6/sv2pi.sh | sh
+curl -fsSL https://raw.githubusercontent.com/plebhash/sv2pi/refs/heads/main/sv2pi.sh | sh
 ```
 
 Or manually:
