@@ -14,22 +14,26 @@ echo '  Using: rust:1.75-slim via Docker (no local Rust toolchain required)'
 echo '  Crate: key-utils v1.2.0 (stratum-mining)'
 echo ''
 
-cat > /tmp/generate-keypair.rs <<'RUST'
-use key_utils::Secp256k1SecretKey;
-use std::str::FromStr;
+TMPDIR=$(mktemp -d)
+mkdir -p "$TMPDIR/src"
+
+cat > "$TMPDIR/src/main.rs" <<'RUST'
+use secp256k1::{Secp256k1, SecretKey};
+use key_utils::{Secp256k1SecretKey, Secp256k1PublicKey};
 
 fn main() {
-    let key = Secp256k1SecretKey::new();
-    let pubkey = key.public_key();
-    let secret = key.to_string();  // base58 encoded
-    let public = pubkey.to_string();
+    let secp = Secp256k1::new();
+    let (secret_key, _) = secp.generate_keypair(&mut rand::thread_rng());
 
-    println!("authority_public_key = \"{}\"", public);
-    println!("authority_secret_key = \"{}\"", secret);
+    let k = Secp256k1SecretKey(secret_key);
+    let pubkey: Secp256k1PublicKey = k.into();
+
+    println!("authority_public_key = \"{}\"", pubkey.to_string());
+    println!("authority_secret_key = \"{}\"", k.to_string());
 }
 RUST
 
-cat > /tmp/keygen-crate <<'TOML'
+cat > "$TMPDIR/Cargo.toml" <<'TOML'
 [package]
 name = "keygen"
 version = "0.1.0"
@@ -37,16 +41,17 @@ edition = "2021"
 
 [dependencies]
 key-utils = "1.2"
+secp256k1 = { version = "0.28", features = ["rand-std"] }
+rand = "0.8"
 TOML
 
-docker run --rm \
-    -v /tmp/generate-keypair.rs:/build/src/main.rs:ro \
-    -v /tmp/keygen-crate:/build/Cargo.toml:ro \
+docker run --rm --network host \
+    -v "$TMPDIR:/build" \
     -w /build \
     rust:1.75-slim \
-    bash -c 'mkdir -p src && cargo run --release --quiet 2>/dev/null'
+    bash -c 'cargo run --release --quiet'
 
-rm -f /tmp/generate-keypair.rs /tmp/keygen-crate
+rm -rf "$TMPDIR"
 
 echo ''
 ok 'keypair generated'
