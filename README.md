@@ -22,7 +22,7 @@
 | Docker-based deployment | Rust source builds |
 | Rust source code analysis | sv2-ui (planned for next iteration) |
 | Production mainnet | Devnet / testnet / regtest |
-| Bitcoin Core deployment with IPC | Mock / headless Bitcoin Core |
+| Bitcoin Core deployment with IPC | Bitcoin Core without IPC |
 | Crash diagnostics | E2E testing |
 
 ## Install
