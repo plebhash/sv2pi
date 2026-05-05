@@ -66,7 +66,7 @@ git branch -d "$FEATURE"   # local
 
 ## Commit rules
 
-- **Commit title template:** every commit title must carry the `🤖 sv2pi ⛏️` signature:
+- **Commit title template:** every commit authored by the agent must carry the `🤖 sv2pi ⛏️` signature. This rule applies only to agent-created commits — human commits are not obligated (nor encouraged) to follow this template.
 
 ```
 🤖 sv2pi ⛏️ feat: add oneshot CI workflow
