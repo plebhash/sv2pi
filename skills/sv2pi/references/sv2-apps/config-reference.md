@@ -10,6 +10,8 @@ Source files (read in order):
 2. `sv2-apps/docker/config/pool-jds-config.toml.template` — pool + embedded JDS
 3. `sv2-apps/docker/config/jdc-config.toml.template` — Job Declarator Client
 4. `sv2-apps/docker/config/translator-proxy-config.toml.template` — SV1→SV2 bridge
+5. `sv2-tp/` — `docker_env.example` in frozen template for sv2-tp v1.1.0 (CLI-based, no TOML)
+5. `sv2-tp/` — `docker_env.example` in frozen template for sv2-tp v1.1.0 (CLI-based, no TOML)
 
 ---
 
@@ -182,6 +184,45 @@ In a local deployment, both `pool_address` and `jds_address` point to `pool_sv2`
 
 ---
 
+## SV2 Template Provider Configuration (`sv2_tp`)
+
+sv2-tp is a C++ application that uses CLI flags (like Bitcoin Core), not TOML config files.
+It is deployed via `deploy-tp.sh` which passes flags directly to the container entrypoint.
+
+### Core Parameters
+
+| Flag | Default | SV2-Spec Context |
+|---|---|---|
+| `-ipcconnect=unix` | `unix` | Connect to Bitcoin Core via IPC. When set to `unix`, looks for the socket in the default datadir path (`/home/bitcoin/.bitcoin/node.sock`). Can specify explicit path: `-ipcconnect=unix:/custom/path/node.sock`. |
+| `-chain=<chain>` | `main` | Bitcoin network: `main`, `testnet4`, `signet`, `regtest`. Determines the default SV2 port. |
+| `-sv2bind=<addr>[:<port>]` | `127.0.0.1:(chain default)` | Bind address for Template Distribution Protocol. Use `0.0.0.0` for all interfaces, `127.0.0.1` for local-only. Port defaults: 8442 (mainnet), 48442 (testnet4), 38442 (signet), 18447 (regtest). |
+| `-sv2port=<port>` | (chain default) | Override the SV2 listening port. |
+| `-debug=sv2` | (none) | Enable SV2-related debug logging messages. |
+| `-loglevel=sv2:trace` | (none) | Set log level for SV2 messages. `sv2:trace` shows message-level dumps (verbose). |
+
+### Template Update Parameters
+
+| Flag | Default | SV2-Spec Context |
+|---|---|---|
+| `-sv2feedelta=<satoshis>` | `1000` | Minimum fee delta (satoshis) to trigger a new template. Templates are pushed to connected clients when mempool fees increase by this amount. Lower = more frequent updates. |
+| `-templateinterval=<secs>` | `5` | Minimum seconds between fee-based template updates. New blocks always propagate immediately regardless of this setting. |
+
+### Compatibility
+
+| sv2-tp Version | Minimum Bitcoin Core | Template Provider Type for Pool/JDC |
+|---|---|---|
+| v1.1.0 | v31.0 | `[template_provider_type.Sv2Tp]` with `address = "127.0.0.1:8442"` |
+| v1.0.6 | v30.2 | `[template_provider_type.Sv2Tp]` with `address = "127.0.0.1:8442"` |
+
+When sv2-tp is deployed, Pool and JDC configs must use `Sv2Tp` instead of `BitcoinCoreIpc`:
+```toml
+# Pool config: replace [template_provider_type.BitcoinCoreIpc] with:
+[template_provider_type.Sv2Tp]
+address = "127.0.0.1:8442"
+```
+
+---
+
 ## Deployment Topology Configurations
 
 From `docker-compose.yml`, four standard topologies:
@@ -211,6 +252,15 @@ bitcoind ──► jd_client_sv2 (34265) ◄── translator_sv2 (34255) ◄─
                    │
                    └──► Remote Pool (external)
 ```
+
+### 5. `sv2_tp` — With SV2 Template Provider
+sv2-tp + Pool + JDC + Translator + Bitcoin Core. sv2-tp bridges Bitcoin Core IPC to Template Distribution Protocol over TCP.
+```
+bitcoind ──(IPC)──► sv2_tp (8442) ──(SV2 TP)──► pool_sv2 (3333, JDS: 3334)
+                       │
+                       └──(SV2 TP)──► jd_client_sv2 (34265) ◄── translator_sv2 (34255) ◄── SV1 Miners
+```
+Pool and JDC use `template_provider_type.Sv2Tp` instead of `BitcoinCoreIpc`.
 
 ---
 

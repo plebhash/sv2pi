@@ -1,16 +1,17 @@
 ---
 name: sv2pi
-description: Agentic deployment of the Stratum V2 Reference Implementation (SRI) for Bitcoin mainnet. Use when deploying or managing Docker-based SRI apps (pool_sv2, jd_client_sv2, translator_sv2) alongside Bitcoin Core with IPC. Also use for crash diagnostics and health monitoring of already-deployed SRI instances. Scope is strictly production mainnet — not for development, testing, or devnet work.
+description: Agentic deployment of the Stratum V2 Reference Implementation (SRI) for Bitcoin mainnet. Use when deploying or managing Docker-based SRI apps (pool_sv2, jd_client_sv2, translator_sv2, sv2_tp) alongside Bitcoin Core with IPC. Also use for crash diagnostics and health monitoring of already-deployed SRI instances. Scope is strictly production mainnet — not for development, testing, or devnet work.
 ---
 
 # sv2pi — SRI Agentic Deployment
 
 Agentic deployment skill for the [Stratum V2 Reference Implementation](https://github.com/stratum-mining) on Bitcoin mainnet.
 
-This skill deploys Bitcoin Core and three SRI Docker roles:
+This skill deploys Bitcoin Core and four SRI-related Docker roles:
 | Role | Docker Image |
 |---|---|
 | Bitcoin Core | `bitcoin/bitcoin:latest` |
+| Sv2 Template Provider | `stratumv2/sv2-tp` |
 | Pool (with embedded JDS) | `stratumv2/pool_sv2` |
 | Job Declarator Client (JDC) | `stratumv2/jd_client_sv2` |
 | Translator Proxy (SV1→SV2 bridge) | `stratumv2/translator_sv2` |
@@ -37,6 +38,8 @@ Use all three sources together. Logs give operational detail. APIs give quantita
 
 ## Architecture Quick Reference
 
+### Mode A: Direct IPC (no sv2-tp)
+
 ```
 bitcoin_core (docker) ──(IPC)──► pool_sv2 (with embedded JDS)
   ~/.sv2pi/bitcoin/data           ├── Stratum: 0.0.0.0:3333
@@ -52,6 +55,29 @@ bitcoin_core (same volume) ──(IPC)──► jd_client_sv2
                                           ├── Downstream (SV1): 0.0.0.0:34255  ← SV1 miners connect here
                                           └── Upstream (SV2):   jdc:34265
 ```
+
+### Mode B: With sv2-tp (Template Distribution Protocol)
+
+```
+bitcoin_core (docker) ──(IPC)──► sv2_tp
+  ~/.sv2pi/bitcoin/data           └── Template Distribution: 0.0.0.0:8442
+                                                ▲
+                        ┌───────────────────────┴───────────────────────┐
+                        │                                               │
+              pool_sv2 (embedded JDS)                         jd_client_sv2
+              ├── Stratum: 0.0.0.0:3333                      ├── Downstream: 0.0.0.0:34265
+              └── JDS:     0.0.0.0:3334                      └── Upstream:   pool:3333 + pool:3334
+                        ▲                                               ▲
+                        │ (JD protocol)                                 │
+                        └───────────────────────────────────────────────┘
+                                                ▲
+                                                │ (SV2 Mining Protocol)
+                                      translator_sv2
+                                      ├── Downstream (SV1): 0.0.0.0:34255  ← SV1 miners connect here
+                                      └── Upstream (SV2):   jdc:34265
+```
+
+In Mode B, Pool and JDC use `[template_provider_type.Sv2Tp]` with `address = "127.0.0.1:8442"` instead of `BitcoinCoreIpc`.
 
 See `{baseDir}/references/architecture.md` for full detail.
 
@@ -78,6 +104,7 @@ Store as `DEPLOY_TAG`. If the user doesn't specify, default to `main`.
 │   ├── monitoring-api.md                ← HTTP monitoring API for all roles
 │   ├── bitcoin-core-version.md          ← BTC Core version compatibility matrix
 │   └── docker-templates/
+│       ├── v1.1.0/                      ← frozen sv2-tp v1.1.0
 │       ├── v0.3.5/                      ← frozen at v0.3.5
 │       ├── v0.3.4/
 │       ├── v0.3.3/
@@ -144,6 +171,7 @@ cat {baseDir}/references/sv2-apps/bitcoin-core-version.md
 The agent must know the required version before running `deploy-bitcoin.sh`:
 - **`main`** → Bitcoin Core v31.0 (bitcoin_core_sv2 v0.2.0)
 - **v0.3.5 through v0.1.0** → Bitcoin Core v30.2
+- **sv2-tp v1.1.0** → Bitcoin Core v31.0 (uses `stratumv2/sv2-tp:v1.1.0`)
 
 If using a tag not in the frozen references, clone `sv2-apps` and check `bitcoin-core-sv2/README.md` for the exact version requirement.
 
@@ -177,7 +205,35 @@ bash {baseDir}/scripts/check-bitcoin.sh
 export BITCOIN_IPC_PATH   # use the path it outputs
 ```
 
-### Step 5 — Deploy Pool (with embedded JDS)
+### Step 5 — Deploy SV2 Template Provider (sv2-tp)
+
+**sv2-tp is optional but recommended** for production deployments. It decouples the SRI apps from direct Bitcoin Core IPC by serving the Template Distribution Protocol over TCP. This provides better fault isolation — sv2-tp handles IPC reconnection so Pool and JDC don't need direct IPC socket access.
+
+**Compatibility check before deploying:** sv2-tp v1.1.0 requires Bitcoin Core v31.0+. If deploying against v30.2, use sv2-tp v1.0.6. Check `{baseDir}/references/sv2-apps/bitcoin-core-version.md` for the full matrix.
+
+Deploy:
+
+```bash
+bash {baseDir}/scripts/deploy-tp.sh v1.1.0 $HOME/.sv2pi/bitcoin/data mainnet
+```
+
+This:
+- Pulls `stratumv2/sv2-tp:v1.1.0`
+- Connects to Bitcoin Core via IPC (`-ipcconnect=unix`) through the shared datadir volume
+- Listens for Template Distribution Protocol connections on port 8442 (mainnet default)
+- Binds `0.0.0.0:8442` by default (access from other containers)
+
+**The script outputs the address for Pool/JDC configuration.** After deploying sv2-tp, Pool and JDC must use `Sv2Tp` instead of `BitcoinCoreIpc`:
+
+```toml
+# In pool-config.toml or jdc-config.toml:
+[template_provider_type.Sv2Tp]
+address = "127.0.0.1:8442"
+```
+
+Do NOT probe the deployment after the script succeeds.
+
+### Step 6 — Deploy Pool (with embedded JDS)
 
 **CRITICAL:** Never deploy to production with the default keypairs from the Docker config templates. The pool's `authority_public_key`/`authority_secret_key` and the JDC's keypair must be unique per deployment. Generate fresh keys:
 
@@ -210,9 +266,9 @@ If the user's request is vague (e.g. "deploy a pool"), walk them through each co
 
 Never ask about ports/values the user already specified. If the user says "use defaults", deploy immediately.
 
-After the script succeeds, move to Step 6. Do NOT probe the deployment.
+After the script succeeds, move to Step 7. Do NOT probe the deployment.
 
-### Step 6 — Deploy JD Client
+### Step 7 — Deploy JD Client
 
 ```bash
 bash {baseDir}/scripts/deploy-jd.sh $DEPLOY_TAG $BITCOIN_IPC_PATH
@@ -223,13 +279,15 @@ This:
 - Configures upstream to pool on localhost:3333 and JDS on localhost:3334
 - Exposes port 34265 (downstream), 9091 (monitoring)
 
+**If sv2-tp is deployed**, the JDC's template provider must be changed from `BitcoinCoreIpc` to `Sv2Tp`. The generated config uses IPC by default — the agent must update `[template_provider_type]` accordingly.
+
 After deployment, verify:
 ```bash
 docker logs jd_client_sv2 --tail 20
 curl -s http://localhost:9091/api/v1/health
 ```
 
-### Step 7 — Deploy Translator Proxy
+### Step 8 — Deploy Translator Proxy
 
 ```bash
 bash {baseDir}/scripts/deploy-translator.sh $DEPLOY_TAG
@@ -247,7 +305,7 @@ curl -s http://localhost:9092/api/v1/health
 curl -s http://localhost:9092/api/v1/sv1/clients
 ```
 
-### Step 8 — Verify Full Deployment
+### Step 9 — Verify Full Deployment
 
 Run a comprehensive health check across all roles:
 
@@ -258,11 +316,14 @@ for endpoint in 9090 9091 9092; do
   curl -sf http://localhost:$endpoint/api/v1/health | python3 -m json.tool 2>/dev/null || echo "UNREACHABLE"
 done
 
-# Container status
-docker ps --filter "name=pool_sv2" --filter "name=jd_client_sv2" --filter "name=translator_sv2" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+# Container status (including sv2-tp)
+docker ps --filter "name=pool_sv2" --filter "name=jd_client_sv2" --filter "name=translator_sv2" --filter "name=sv2_tp" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+# SV2 Template Provider status
+docker logs sv2_tp --tail 10
 ```
 
-### Step 9 — Build Stateful Representation
+### Step 10 — Build Stateful Representation
 
 Probe detailed monitoring endpoints and build a mental model:
 
@@ -297,7 +358,7 @@ When something fails:
 
 ### 1. Check Container Status
 ```bash
-docker ps -a --filter "name=pool_sv2" --filter "name=jd_client_sv2" --filter "name=translator_sv2"
+docker ps -a --filter "name=pool_sv2" --filter "name=jd_client_sv2" --filter "name=translator_sv2" --filter "name=sv2_tp"
 ```
 
 ### 2. Inspect Logs Against Source
@@ -307,7 +368,8 @@ docker ps -a --filter "name=pool_sv2" --filter "name=jd_client_sv2" --filter "na
 1. **Analyze source first.** Read the relevant source files at `~/.cache/sv2pi/sv2-apps-$DEPLOY_TAG/` to identify log message formats, error strings, and diagnostic patterns:
 
 | App | Key source paths |
-|---|---|
+|---|---|---|
+| sv2-tp | `src/sv2/` (template_provider, connman, messages, noise, transport) |
 | Pool | `pool-apps/pool/src/` |
 | JDC | `miner-apps/jd-client/src/` |
 | Translator | `miner-apps/translator/src/` |
@@ -337,19 +399,25 @@ docker exec translator_sv2 sh -c 'echo | nc -w2 jdc_host 34265 && echo "JDC REAC
 docker exec pool_sv2 ls -la /bitcoin/node.sock
 ```
 
-### 4. Check Bitcoin Core
+### 4. Check Bitcoin Core and sv2-tp
 ```bash
 # Verify container is running
 docker ps --filter name=bitcoin_core
+docker ps --filter name=sv2_tp
 
 # Check IPC socket inside SRI containers
 docker exec pool_sv2 ls -la /bitcoin/node.sock 2>/dev/null || echo "IPC socket not visible to pool"
+docker exec sv2_tp ls -la /home/bitcoin/.bitcoin/node.sock 2>/dev/null || echo "IPC socket not visible to sv2-tp"
+
+# Check sv2-tp IPC connection status
+docker logs sv2_tp --tail 20 | grep -i 'connect\|ipc\|error'
 
 # Check sync status
 docker exec bitcoin_core bitcoin-cli getblockchaininfo 2>/dev/null | grep -E 'blocks|verificationprogress'
 
 # Check logs
 docker logs bitcoin_core --tail 50
+docker logs sv2_tp --tail 50
 ```
 
 ### 5. Config Validation
@@ -389,15 +457,19 @@ Then update `authority_public_key` and `authority_secret_key` in each app's conf
 
 ### Frozen Docker config templates (bundled per release tag)
 These ship with the skill — no clone needed for known tags:
-- `{baseDir}/references/sv2-apps/docker-templates/v0.3.5/` through `{baseDir}/references/sv2-apps/docker-templates/v0.1.0/` — release templates
+- `{baseDir}/references/sv2-apps/docker-templates/v1.1.0/` — sv2-tp v1.1.0 frozen template
+- `{baseDir}/references/sv2-apps/docker-templates/v0.3.5/` through `{baseDir}/references/sv2-apps/docker-templates/v0.1.0/` — SRI release templates
 
 There is **no frozen snapshot for `main`**. `main` is a rolling branch; its Docker config templates must be fetched live at runtime from `https://github.com/stratum-mining/sv2-apps`.
 
-Each frozen directory contains:
+Each frozen SRI directory contains:
 - `docker_env.example` — environment variables and defaults
 - `pool-jds-config.toml.template` — pool + embedded JDS
 - `jdc-config.toml.template` — Job Declarator Client
 - `translator-proxy-config.toml.template` — SV1→SV2 Translator Proxy
+
+The sv2-tp frozen directory contains:
+- `docker_env.example` — sv2-tp CLI flags and defaults (no TOML config needed)
 
 ### Live sources (fetched at runtime)
 - `https://github.com/stratum-mining/sv2-apps` — for `main` branch Docker config templates, unknown future tags, and source code for log comparison

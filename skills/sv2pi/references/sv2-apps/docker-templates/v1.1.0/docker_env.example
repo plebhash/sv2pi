@@ -1,0 +1,28 @@
+# SV2 Template Provider Configuration (sv2-tp)
+
+# Network (used as -chain)
+SV2_TP_CHAIN=main
+
+# SV2 listening port (default per -chain)
+#   main: 8442, testnet4: 48442, signet: 38442, regtest: 18447
+SV2_TP_PORT=8442
+
+# Bind address (use 0.0.0.0 for all interfaces, 127.0.0.1 for local only)
+SV2_TP_BIND=0.0.0.0
+
+# IPC connection to Bitcoin Core
+#   unix = connect to default socket in shared datadir
+#   unix:/path = connect to specific socket path
+SV2_TP_IPCCONNECT=unix
+
+# Debug logging
+SV2_TP_DEBUG=sv2
+
+# Log level for SV2 messages (sv2:trace for verbose message dumps)
+SV2_TP_LOGLEVEL=sv2:trace
+
+# Minimum fee delta (satoshis) to trigger a new template
+SV2_TP_FEE_DELTA=1000
+
+# Minimum seconds between fee-based template updates
+SV2_TP_TEMPLATE_INTERVAL=5
