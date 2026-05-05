@@ -57,7 +57,7 @@ echo ''
 ok 'keypair generated'
 echo ''
 echo 'SV2-compatible secp256k1 keypair, base58-encoded.'
-echo 'Copy into any SRI app config (pool, JDC, translator) as authority_public_key/authority_secret_key.'
+echo 'Copy Sv2 app configs as authority_public_key/authority_secret_key.'
 echo ''
 printf '%b⚠️  SECURITY TRADEOFF:%b\n' "${RED}" "${NC}"
 echo '  The private key above has been exposed to the LLM context.'
