@@ -25,7 +25,7 @@ Helper scripts at `{baseDir}/scripts/`. Reference docs at `{baseDir}/references/
 
 You build a stateful mental model of deployed SRI instances from three sources:
 
-1. **SV2 Protocol Spec** — Understand what each role does and how they connect. See `{baseDir}/references/sv2-spec-overview.md`.
+1. **SV2 Protocol Spec** — Understand what each app does and how they connect. See `{baseDir}/references/sv2-spec-overview.md`.
 2. **Log Observation** — Analyze the source code first to understand log format and error patterns, then grep logs for those patterns. NEVER load entire log files into context — they are too large and will burn tokens. Always use `--tail N` or pipe through `grep`.
 3. **HTTP API Probing** — Probe monitoring endpoints described in `{baseDir}/references/sv2-apps/monitoring-api.md`. This provides real-time hashrate, channel count, connected clients, shares accepted, and block data.
 
@@ -187,7 +187,7 @@ bash {baseDir}/scripts/generate-keypair.sh
 
 This uses `key-utils` (the official SRI key generation crate) inside a Dockerized Rust environment — no local Rust toolchain needed. The output is base58-encoded secp256k1 keys in TOML-ready format for `pool-config.toml`.
 
-**Security tradeoff:** The generated private keys are exposed to the LLM context and potentially compromised. This is a deliberate tradeoff of agentic deployments in sv2pi — the user accepts this compromise. Encourage the user to ask the agent to rotate keys across deployments.
+**Security tradeoff:** The generated private keys are exposed to the LLM context and potentially exposed to LLM providers. This is a deliberate tradeoff of agentic deployments in sv2pi — the user accepts this. Encourage the user to ask the agent to rotate keys across deployments.
 
 Generate **two** keypairs: one for the pool, one for the JDC. Copy the pool's `authority_public_key` into the JDC's `[[upstreams]].authority_pubkey` (they share the same key for trust). The JDC's own authority keypair is separate and used for downstream Translator connections.
 
@@ -374,7 +374,7 @@ If `sv2-apps` includes a keygen utility, use it. Otherwise, generate with `opens
 openssl genpkey -algorithm ed25519 -outform DER | base64 | tr -d '/+=\n'
 ```
 
-Then update `authority_public_key` and `authority_secret_key` in each role's config before deploying.
+Then update `authority_public_key` and `authority_secret_key` in each app's config before deploying.
 
 ---
 
@@ -383,7 +383,7 @@ Then update `authority_public_key` and `authority_secret_key` in each role's con
 ### Static references (bundled with the skill)
 - `{baseDir}/references/architecture.md` — SRI app architecture and connection flow
 - `{baseDir}/references/sv2-spec-overview.md` — SV2 protocol roles and sub-protocols
-- `{baseDir}/references/sv2-apps/monitoring-api.md` — HTTP monitoring API reference for each role
+- `{baseDir}/references/sv2-apps/monitoring-api.md` — HTTP monitoring API reference for each app
 - `{baseDir}/references/sv2-apps/config-reference.md` — every config parameter with SV2-spec context and production guidance
 - `{baseDir}/references/sv2-apps/bitcoin-core-version.md` — Bitcoin Core version compatibility per SRI release
 

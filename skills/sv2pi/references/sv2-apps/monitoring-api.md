@@ -65,7 +65,7 @@ Available at `/metrics`:
 
 ## Probing Strategy
 
-1. **Health first** — Confirm each role is alive: `curl -sf http://localhost:{port}/api/v1/health`
+1. **Health first** — Confirm each app is alive: `curl -sf http://localhost:{port}/api/v1/health`
 2. **Topology** — Map channels and clients to understand the connection graph: `/api/v1/server/channels` + `/api/v1/clients`
 3. **Performance** — Monitor hashrate and share acceptance over time
 4. **Anomaly detection** — Drops in hashrate, client disconnections, stale channels

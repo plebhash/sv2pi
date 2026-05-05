@@ -61,7 +61,7 @@ echo ''
 printf '%b⚠️  SECURITY TRADEOFF:%b\n' "${RED}" "${NC}"
 echo '  The private key above has been exposed to the LLM context.'
 echo '  This is a deliberate tradeoff of agentic deployments in sv2pi.'
-echo '  The user accepts that LLM-generated keys are potentially compromised.'
+echo '  The user accepts that LLM-generated keys are potentially exposed to LLM providers.'
 echo ''
 echo '  Mitigation: ask the agent to rotate keys across deployments.'
 echo ''
