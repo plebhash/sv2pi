@@ -51,9 +51,20 @@ docker run --rm --network host \
     rust:1.75-slim \
     bash -c 'cargo run --release --quiet'
 
-rm -rf "$TMPDIR" 2>/dev/null || true 2>/dev/null || true
+rm -rf "$TMPDIR" 2>/dev/null || true
 
 echo ''
 ok 'keypair generated'
 echo ''
 echo 'Copy these into your pool/jdc config TOML and share the public key with downstream apps.'
+echo ''
+printf '%b⚠  SECURITY WARNING:%b\n' "${RED}" "${NC}"
+echo '  The private key above has been exposed to the LLM context.'
+echo '  This is a deliberate tradeoff for sv2pi. The LLM may log or'
+echo '  retain the key in training data or session history.'
+echo ''
+echo '  Mitigations:'
+echo '    - Rotate keys frequently (generate new keypair for each session)'
+echo '    - Use a dedicated mining wallet, not a long-term holding address'
+echo '    - For production, generate keys offline and paste them manually'
+echo ''
