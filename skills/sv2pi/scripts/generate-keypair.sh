@@ -51,7 +51,7 @@ docker run --rm --network host \
     rust:1.75-slim \
     bash -c 'cargo run --release --quiet'
 
-rm -rf "$TMPDIR"
+rm -rf "$TMPDIR" 2>/dev/null || true 2>/dev/null || true
 
 echo ''
 ok 'keypair generated'
