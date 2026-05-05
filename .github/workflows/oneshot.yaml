@@ -123,6 +123,7 @@ jobs:
 
       - name: Validate — pool health check
         run: |
+          sleep 5
           curl -sf http://localhost:9090/api/v1/health \
             && echo "PASS: pool health OK" \
             || { echo "FAIL: pool health check failed"; exit 1; }
@@ -189,7 +190,7 @@ jobs:
       - name: Run oneshot — compatibility check
         run: |
           pi $PI_ARGS -p "Load the sv2pi skill. I deployed Bitcoin Core v31.0 myself. \
-            Which SRI apps can I deploy? List them concisely." 2>&1 | tee /tmp/pi-output.txt
+            Which SRI Docker tags can I deploy? List them concisely." 2>&1 | tee /tmp/pi-output.txt
 
       - name: Validate — correct compatibility answer
         run: |
