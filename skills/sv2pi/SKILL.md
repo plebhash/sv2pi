@@ -177,6 +177,16 @@ export BITCOIN_IPC_PATH   # use the path it outputs
 
 ### Step 5 — Deploy Pool (with embedded JDS)
 
+**CRITICAL:** Never deploy to production with the default keypairs from the Docker templates. The pool's `authority_public_key`/`authority_secret_key` and the JDC's keypair must be unique per deployment. Generate fresh keys:
+
+```bash
+bash {baseDir}/scripts/generate-keypair.sh
+```
+
+This uses `key-utils` (the official SRI key generation crate) inside a Dockerized Rust environment — no local Rust toolchain needed. The output is base58-encoded secp256k1 keys in TOML-ready format for `pool-config.toml`.
+
+Generate **two** keypairs: one for the pool, one for the JDC. Copy the pool's `authority_public_key` into the JDC's `[[upstreams]].authority_pubkey` (they share the same key for trust). The JDC's own authority keypair is separate and used for downstream Translator connections.
+
 If the user has already reviewed the config templates (Step 2) and agrees to use defaults, deploy directly:
 
 ```bash
