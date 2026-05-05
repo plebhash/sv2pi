@@ -6,7 +6,7 @@
 # to successful completion.
 #
 # Benchmark model: deepseek/deepseek-chat (mid-tier, via OpenRouter).
-# Secret required: OPENROUTER_KEY (set in repo Settings → Secrets → Actions).
+# Secret required: OPENROUTER_API_KEY (set in repo Settings → Secrets → Actions).
 
 name: oneshot
 
@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
 
 env:
-  OPENROUTER_KEY: ${{ secrets.OPENROUTER_KEY }}
+  OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
   PI_ARGS: "--provider openrouter --model deepseek/deepseek-chat"
 
 jobs:
