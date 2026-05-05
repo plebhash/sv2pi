@@ -185,11 +185,11 @@ export BITCOIN_IPC_PATH   # use the path it outputs
 bash {baseDir}/scripts/generate-keypair.sh
 ```
 
-This uses `key-utils` (the official SRI key generation crate) inside a Dockerized Rust environment — no local Rust toolchain needed. The output is base58-encoded secp256k1 keys in TOML-ready format for `pool-config.toml`.
+This uses `key-utils` (the official SRI key generation crate) inside a Dockerized Rust environment — no local Rust toolchain needed. The output is a base58-encoded secp256k1 keypair in TOML-ready format.
 
 **Security tradeoff:** The generated private keys are exposed to the LLM context and potentially exposed to LLM providers. This is a deliberate tradeoff of agentic deployments in sv2pi — the user accepts this. Encourage the user to ask the agent to rotate keys across deployments.
 
-Generate **two** keypairs: one for the pool, one for the JDC. Copy the pool's `authority_public_key` into the JDC's `[[upstreams]].authority_pubkey` (they share the same key for trust). The JDC's own authority keypair is separate and used for downstream Translator connections.
+Generate **two** secp256k1 keypairs: one for the pool app, one for the JDC app. Copy the pool's `authority_public_key` into the JDC's `[[upstreams]].authority_pubkey`. The JDC's own authority keypair is separate and used for downstream Translator connections.
 
 If the user has already reviewed the config templates (Step 2) and agrees to use defaults, deploy directly:
 

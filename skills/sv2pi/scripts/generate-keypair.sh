@@ -56,7 +56,8 @@ rm -rf "$TMPDIR" 2>/dev/null || true
 echo ''
 ok 'keypair generated'
 echo ''
-echo 'Copy these into your pool/jdc config TOML and share the public key with downstream apps.'
+echo 'SV2-compatible secp256k1 keypair, base58-encoded.'
+echo 'Copy into any SRI app config (pool, JDC, translator) as authority_public_key/authority_secret_key.'
 echo ''
 printf '%b⚠️  SECURITY TRADEOFF:%b\n' "${RED}" "${NC}"
 echo '  The private key above has been exposed to the LLM context.'
