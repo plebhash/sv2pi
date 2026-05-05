@@ -187,7 +187,7 @@ bash {baseDir}/scripts/generate-keypair.sh
 
 This uses `key-utils` (the official SRI key generation crate) inside a Dockerized Rust environment — no local Rust toolchain needed. The output is base58-encoded secp256k1 keys in TOML-ready format for `pool-config.toml`.
 
-**Security tradeoff:** The generated private keys are exposed to the LLM context and may be logged or retained in training data. This is a deliberate tradeoff for sv2pi. Warn the user: keys are potentially compromised just by being generated via LLM. Encourage frequent key rotation (generate fresh keys each session). For hardened production setups, the user should generate keys offline and paste them into configs manually.
+**Security tradeoff:** The generated private keys are exposed to the LLM context and potentially compromised. This is a deliberate tradeoff of agentic deployments in sv2pi — the user accepts this compromise. Encourage the user to ask the agent to rotate keys across deployments.
 
 Generate **two** keypairs: one for the pool, one for the JDC. Copy the pool's `authority_public_key` into the JDC's `[[upstreams]].authority_pubkey` (they share the same key for trust). The JDC's own authority keypair is separate and used for downstream Translator connections.
 
