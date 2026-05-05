@@ -90,7 +90,7 @@ Store as `DEPLOY_TAG`. If the user doesn't specify, default to `main`.
 
 **If the user selected a tagged release (e.g. `v0.3.5`):**
 
-Read the frozen templates directly:
+Read the frozen Docker config templates directly:
 
 ```bash
 cat {baseDir}/references/sv2-apps/docker-templates/$DEPLOY_TAG/docker_env.example
@@ -177,7 +177,7 @@ export BITCOIN_IPC_PATH   # use the path it outputs
 
 ### Step 5 — Deploy Pool (with embedded JDS)
 
-**CRITICAL:** Never deploy to production with the default keypairs from the Docker templates. The pool's `authority_public_key`/`authority_secret_key` and the JDC's keypair must be unique per deployment. Generate fresh keys:
+**CRITICAL:** Never deploy to production with the default keypairs from the Docker config templates. The pool's `authority_public_key`/`authority_secret_key` and the JDC's keypair must be unique per deployment. Generate fresh keys:
 
 ```bash
 bash {baseDir}/scripts/generate-keypair.sh
@@ -193,7 +193,7 @@ If the user has already reviewed the config templates (Step 2) and agrees to use
 bash {baseDir}/scripts/deploy-pool.sh $DEPLOY_TAG $BITCOIN_IPC_PATH
 ```
 
-If the user's request is vague (e.g. "deploy a pool"), walk them through each configuration choice from the frozen template, offering the default value each time. Key parameters:
+If the user's request is vague (e.g. "deploy a pool"), walk them through each configuration choice from the frozen Docker config template, offering the default value each time. Key parameters:
 
 | Parameter | Default | Ask |
 |---|---|---|
@@ -387,7 +387,7 @@ Then update `authority_public_key` and `authority_secret_key` in each role's con
 These ship with the skill — no clone needed for known tags:
 - `{baseDir}/references/sv2-apps/docker-templates/v0.3.5/` through `{baseDir}/references/sv2-apps/docker-templates/v0.1.0/` — release templates
 
-There is **no frozen snapshot for `main`**. `main` is a rolling branch; its templates must be fetched live at runtime from `https://github.com/stratum-mining/sv2-apps`.
+There is **no frozen snapshot for `main`**. `main` is a rolling branch; its Docker config templates must be fetched live at runtime from `https://github.com/stratum-mining/sv2-apps`.
 
 Each frozen directory contains:
 - `docker_env.example` — environment variables and defaults
@@ -396,5 +396,5 @@ Each frozen directory contains:
 - `translator-proxy-config.toml.template` — SV1→SV2 Translator Proxy
 
 ### Live sources (fetched at runtime)
-- `https://github.com/stratum-mining/sv2-apps` — for `main` branch templates, unknown future tags, and source code for log comparison
+- `https://github.com/stratum-mining/sv2-apps` — for `main` branch Docker config templates, unknown future tags, and source code for log comparison
 - `https://github.com/stratum-mining/sv2-spec` — protocol specification
