@@ -31,6 +31,8 @@ You build a stateful mental model of deployed SRI instances from three sources:
 
 Use all three sources together. Logs give operational detail. APIs give quantitative state. Source code gives authoritative semantics.
 
+**Concurrent human operators:** The stateful model is not authoritative. Human operators may concurrently interact with containers (stop, restart, reconfigure them). Always re-validate container state with `docker ps` before running any operation that depends on a running container. Never assume a previously-running container is still up.
+
 ---
 
 ## Architecture Quick Reference
