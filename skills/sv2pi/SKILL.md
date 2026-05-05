@@ -197,7 +197,7 @@ If the user's request is vague (e.g. "deploy a pool"), walk them through each co
 
 | Parameter | Default | Ask |
 |---|---|---|
-| `coinbase_reward_script` | `addr(...)` placeholder | "What payout address?" |
+| `coinbase_reward_script` | `addr(...)` (SRI community wallet) | "What payout address? (default: SRI community wallet)" |
 | `listen_address` | `0.0.0.0:3333` | "Stratum port? (default 3333)" |
 | `JDS listen_address` | `0.0.0.0:3334` | "JDS port? (default 3334)" |
 | `shares_per_minute` | `6.0` | "Target shares/minute? (default 6)" |
