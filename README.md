@@ -43,7 +43,6 @@ Then invoke with `/skill:sv2pi` from any project.
 
 - [Pi Coding Agent](https://pi.dev/)
 - [Docker](https://docs.docker.com/engine/install/)
-- Bitcoin Core v30.2+ running with `-ipcbind=unix`
 
 ## Contributing
 
