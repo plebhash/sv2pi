@@ -13,23 +13,22 @@ if [ -z "$BITCOIN_IPC_PATH" ]; then
     exit 1
 fi
 
-if [ ! -S "$BITCOIN_IPC_PATH" ]; then
+# Socket check: retry with sudo if plain test fails (root-owned volume)
+if [ ! -S "$BITCOIN_IPC_PATH" ] && ! sudo test -S "$BITCOIN_IPC_PATH" 2>/dev/null; then
     echo "ERROR: Bitcoin IPC socket not found at: $BITCOIN_IPC_PATH"
     echo "  Verify Bitcoin Core is running with -ipcbind=unix"
     exit 1
 fi
 
-BITCOIN_DIR=$(dirname "$BITCOIN_IPC_PATH")
-SOCK_NAME=$(basename "$BITCOIN_IPC_PATH")
-
 mkdir -p "$CONFIG_DIR" "$DATA_DIR"
 
+# REPLACE WITH YOUR MAINNET ADDRESS BELOW
 cat > "$CONFIG_DIR/pool-config.toml" <<TOML
 authority_public_key = "9auqWEzQDVyd2oe1JVGFLMLHZtCo2FFqZwtKA5gd9xbuEu7PH72"
 authority_secret_key = "mkDLTBBRxdBv998612qipDYoTK3YUrqLe8uWw7gu3iXbSrn2n"
 cert_validity_sec = 3600
 listen_address = "0.0.0.0:3333"
-coinbase_reward_script = "P2WPKH"
+coinbase_reward_script = "addr(1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa)"
 server_id = 1
 pool_signature = "SRI Mainnet Pool"
 shares_per_minute = 6.0
@@ -39,7 +38,6 @@ monitoring_cache_refresh_secs = 15
 
 [template_provider_type.BitcoinCoreIpc]
 network = "mainnet"
-data_dir = "/bitcoin"
 fee_threshold = 100
 min_interval = 5
 
@@ -55,8 +53,8 @@ docker run -d \
     -p 3333:3333 \
     -p 3334:3334 \
     -p 9090:9090 \
-    -v "$CONFIG_DIR:/app/config:ro" \
-    -v "$BITCOIN_DIR:/bitcoin:ro" \
+    -v "$CONFIG_DIR/pool-config.toml:/app/pool-config.toml:ro" \
+    -v "$BITCOIN_IPC_PATH:/root/.bitcoin/node.sock:ro" \
     -v "$DATA_DIR:/app/data" \
     "stratumv2/pool_sv2:$TAG"
 
@@ -66,7 +64,7 @@ echo "  Image:            stratumv2/pool_sv2:$TAG"
 echo "  Stratum endpoint: localhost:3333"
 echo "  JDS endpoint:     localhost:3334"
 echo "  Monitoring:       http://localhost:9090"
-echo "  Bitcoin IPC:      mounted $BITCOIN_IPC_PATH -> /bitcoin/$SOCK_NAME"
+echo "  Bitcoin IPC:      mounted $BITCOIN_IPC_PATH -> /root/.bitcoin/node.sock"
 echo ""
 echo "Verify: curl -s http://localhost:9090/api/v1/health"
 echo "Logs:   docker logs pool_sv2 --tail 50"
