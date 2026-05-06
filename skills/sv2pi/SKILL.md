@@ -192,6 +192,28 @@ After running the script, export the IPC path and move immediately to Step 5. Do
 
 **After deployment:** look up the BTC Core → SRI mapping in `{baseDir}/references/sv2-apps/bitcoin-core-version.md`. When the user later picks an SRI tag, only suggest compatible ones. If the user requests an incompatible pair, refuse and show the valid mappings.
 
+**Snapshot acceleration:** Bitcoin Core mainnet IBD takes hours to days. After deployment, Bitcoin Core will begin syncing from scratch. Ask the user:
+
+> *"Bitcoin Core is syncing from scratch — IBD on mainnet can take days. Do you have a snapshot of a pre-synced datadir (blocks/ and chainstate/ directories) to accelerate this?"*
+
+If the user has a snapshot, ask for:
+
+1. **Path to `blocks/` directory** — a directory containing Bitcoin block data (e.g. `~/bitcoin-snapshot/blocks`)
+2. **Path to `chainstate/` directory** — a directory containing UTXO set state (e.g. `~/bitcoin-snapshot/chainstate`)
+3. **`prune` setting** — the prune value (in MiB) associated with that snapshot, if any. The snapshot's `blocks/` and `chainstate/` were generated under a specific prune configuration — the agent must carry that prune setting forward so the container respects it on restart. If the user says "no prune" or "no", omit prune entirely.
+
+**CRITICAL:** The prune value must match what was used when the snapshot was created. If the snapshot was created with `prune=555`, passing no prune will cause Bitcoin Core to expect full block data that isn't there. If in doubt, ask the user to double-check.
+
+Once all three values are confirmed, inject the snapshot:
+
+```bash
+bash {baseDir}/scripts/snapshot.sh <blocks_dir> <chainstate_dir> [prune]
+```
+
+This stops the container, clears the existing (barely-started) blocks/chainstate from the data dir, copies the snapshot data in, writes `prune=N` to `bitcoin.conf` if prune was specified, and restarts the container. After injection, Bitcoin Core resumes from the snapshot's chain height — the container persists its own blocks/chainstate normally on subsequent restarts.
+
+If the user declines, continue to Step 5 — the node will sync from scratch.
+
 If the script fails with a Docker permission error:
 ```bash
 sudo usermod -aG docker $USER && newgrp docker
