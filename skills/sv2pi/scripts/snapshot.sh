@@ -14,6 +14,29 @@ NC='\033[0m'
 err() { printf '%bERROR:%b %s\n' "${RED}" "${NC}" "$*" >&2; }
 ok()  { printf '%bOK:%b %s\n' "${GREEN}" "${NC}" "$*"; }
 
+# ── Docker accessibility preflight ─────────────────────────────────
+
+if ! docker ps >/dev/null 2>&1; then
+    if groups 2>/dev/null | grep -q docker || id -Gn 2>/dev/null | grep -q docker; then
+        err 'Docker is not accessible despite docker group membership.'
+        echo ''
+        echo '  The current shell session lacks the docker group. Fix:'
+        echo ''
+        echo '    newgrp docker                         # switch to docker group'
+        echo '    sg docker -c "bash $0 $*"             # wrap just this invocation'
+        echo ''
+        exit 1
+    else
+        err 'Docker is not accessible.'
+        echo ''
+        echo '  Fix: sudo usermod -aG docker $USER && newgrp docker'
+        echo ''
+        exit 1
+    fi
+fi
+
+# ── Input validation ───────────────────────────────────────────────
+
 if [ -z "$BLOCKS_DIR" ] || [ -z "$CHAINSTATE_DIR" ]; then
     err 'usage: snapshot.sh <blocks_dir> <chainstate_dir> [prune]'
     echo '  blocks_dir     path to an existing blocks/ directory'
@@ -40,6 +63,18 @@ if [ -n "$PRUNE" ]; then
     if [ "$PRUNE" -lt 550 ]; then
         err "minimum prune is 550 MiB (Bitcoin Core enforces >= 550)"
         exit 1
+    fi
+fi
+
+# ── Self-elevate for root-owned data dir ───────────────────────────
+# Docker volume mounts write files as root. If the data dir already
+# contains root-owned files (from a previous deploy), re-exec via
+# sudo -E so rm/cp/write operations don't fail.
+
+if [ -d "$DATA_DIR" ] && [ "$EUID" -ne 0 ]; then
+    OWNER=$(stat -f '%u' "$DATA_DIR" 2>/dev/null || stat -c '%u' "$DATA_DIR" 2>/dev/null || echo "$EUID")
+    if [ "$OWNER" = "0" ]; then
+        exec sudo -E BITCOIN_DATA_DIR="$DATA_DIR" "$0" "$@"
     fi
 fi
 
