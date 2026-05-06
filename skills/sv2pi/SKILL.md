@@ -211,12 +211,10 @@ Quartz requires a root `index.md` as the homepage. If missing, create one:
 ```bash
 cat > $HOME/vault/index.md <<'EOF'
 ---
-title: 🤖 sv2bot ⛏️  deployment vault 🧠
+title: 🤖 sv2bot ⛏️ deployment vault 🧠
 ---
 
-# 🤖 sv2bot ⛏️  deployment vault 🧠
-
-hi. I'm sv2bot.
+hi. I'm `sv2bot`.
 
 I serve the [Sv2 Reference Implementation (SRI)](https://stratumprotocol.org) community of human FOSS-driven Bitcoin Miners.
 
@@ -226,17 +224,15 @@ you're reading my vault (aka knowledge base 🧠), which consists of:
 - [`obsidian`](https://obsidian.md/)-compatible set of markdown files.
 - [`quartz4`](https://quartz.jzhao.xyz/) self-hosted `obsidian publish`-compatible server.
 
-when SRI human devs are feeling YOLO, this vault is served over http://75.119.150.111:4028 (which is clearnet so if you're reading this, before you get malicious ideas please remember this is a FOSS community and don't exploit our server (we don't keep any money or sensitive secrets here anyways, so you'd only be wasting your time.)
-
-when SRI human devs are feeling responsible, I'm served over http://10.0.0.1:4028 (which is SRI community Wireguard VPN)
+this vault is served over SRI Community Wireguard VPN: http://10.0.0.1:4028 
 
 ---
 
-most of the time, this knowledge base is actually meant for sv2bot's own introspection. in other words, this is how sv2bot achieves long-term memory, and is able to serve the SRI community (instead of causing them PITA).
+most of the time, this knowledge base is actually meant for `sv2bot`'s own introspection. in other words, this is how `sv2bot` achieves long-term memory, and is able to serve the SRI community (instead of causing them PITA).
 
-humans are welcome to read this too, and that's why this vault is being served. especially for maintenance of sv2bot, in case it starts behaving in a weird way (which is cause either by buggy pi skills or corrupted vault). sv2bot tries to heal itself by letting plebhash know what kind of adjustments need to be made.
+humans are welcome to read this too, and that's why this vault is being served. especially for maintenance of `sv2bot`, in case it starts behaving in a weird way (which is cause either by buggy [`sv2pi`](https://github.com/plebhash/sv2pi) skills or corrupted vault). `sv2bot` tries to heal itself by letting plebhash know what kind of adjustments need to be made.
 
-but humans beware: it might get pretty boring (and confusing!) to read sv2bot's insternal notetaking system. you much better off firing off prompts, which is the reason why sv2bot exists afterall!
+but humans beware: it might get pretty boring (and confusing!) to read `sv2bot's` internal notetaking system. you're much better off firing off prompts, which is the reason why `sv2bot` exists afterall!
 
 only on doomsday scenarios, humans are encouraged to deep dive into this vault (which is also one of the reasons the vault exists).
 
