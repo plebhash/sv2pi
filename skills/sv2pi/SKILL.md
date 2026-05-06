@@ -1,6 +1,6 @@
 ---
 name: sv2pi
-description: Agentic deployment of the Stratum V2 Reference Implementation (SRI) for Bitcoin mainnet. Use when deploying or managing Docker-based SRI apps (pool_sv2, jd_client_sv2, translator_sv2, sv2_tp) alongside Bitcoin Core with IPC. Also use for crash diagnostics, health monitoring of already-deployed SRI instances, and serving/publishing the sv2pi operations wiki via Quartz 4 over WireGuard. Scope is strictly production mainnet — not for development, testing, or devnet work.
+description: Agentic deployment of the Stratum V2 Reference Implementation (SRI) for Bitcoin mainnet. Use when deploying or managing Docker-based SRI apps (pool_sv2, jd_client_sv2, translator_sv2, sv2_tp) alongside Bitcoin Core with IPC. Also use for crash diagnostics, health monitoring of already-deployed SRI instances, and serving/publishing the sv2pi operations vault via Quartz 4 over WireGuard. Scope is strictly production mainnet — not for development, testing, or devnet work.
 ---
 
 # sv2pi — SRI Agentic Deployment
@@ -26,18 +26,18 @@ Helper scripts at `{baseDir}/scripts/`. Reference docs at `{baseDir}/references/
 
 You build a stateful mental model of deployed SRI instances from four sources:
 
-1. **SV2 Operations Wiki** — Persistent operator memory lives at `$HOME/wiki` (`/home/sv2bot/wiki` on this VPS). It is an LLM Wiki vault managed by `pi-llm-wiki`; read it before making deployment-health claims or operational recommendations.
+1. **SV2 Operations Vault** — Persistent operator memory lives at `$HOME/wiki` (`/home/sv2bot/wiki` on this VPS). It is an LLM Wiki vault managed by `pi-llm-wiki`; read it before making deployment-health claims or operational recommendations.
 2. **SV2 Protocol Spec** — Understand what each app does and how they connect. See `{baseDir}/references/sv2-spec-overview.md`.
 3. **Log Observation** — Analyze the source code first to understand log format and error patterns, then grep logs for those patterns. NEVER load entire log files into context — they are too large and will burn tokens. Always use `--tail N` or pipe through `grep`.
 4. **HTTP API Probing** — Probe monitoring endpoints described in `{baseDir}/references/sv2-apps/monitoring-api.md`. This provides real-time hashrate, channel count, connected clients, shares accepted, and block data.
 
-Use all four sources together. The wiki gives durable cross-session context and operator directives. Logs give operational detail. APIs give quantitative state. Source code gives authoritative semantics.
+Use all four sources together. The vault gives durable cross-session context and operator directives. Logs give operational detail. APIs give quantitative state. Source code gives authoritative semantics.
 
 **Concurrent human operators:** The stateful model is not authoritative. Human operators may concurrently interact with containers (stop, restart, reconfigure them). Always re-validate container state with `docker ps` before running any operation that depends on a running container. Never assume a previously-running container is still up.
 
 ---
 
-## Persistent Operations Wiki (`pi-llm-wiki`)
+## Persistent Operations Vault (`pi-llm-wiki`)
 
 The sv2pi agent uses the `pi-llm-wiki` extension as persistent, Obsidian-compatible memory for this production VPS.
 
@@ -60,9 +60,9 @@ Before answering questions about deployment health, missing roles, crash state, 
    - `$HOME/wiki/deployment/translator.md`
    - recent files under `$HOME/wiki/interventions/` and `$HOME/wiki/incidents/` when applicable
 3. Re-validate live state with `docker ps -a` and targeted probes before acting.
-4. After any meaningful action or discovery, update the appropriate wiki page(s) so future sessions inherit the new state.
+4. After any meaningful action or discovery, update the appropriate vault page(s) so future sessions inherit the new state.
 
-### Wiki layout and ownership
+### Vault layout and ownership
 
 The vault is a migrated operations knowledge base plus a standard `pi-llm-wiki` four-layer wiki:
 
@@ -98,19 +98,17 @@ Use the `pi-llm-wiki` tools when maintaining structured knowledge:
 
 For direct operational pages in migrated directories, use normal file tools (`read`, `edit`, `write`) and keep entries concise, dated, and factual.
 
-### Operator directives in the wiki are binding
+### Operator directives in the vault are binding
 
-If `$HOME/wiki/README.md` or a deployment/intervention page contains a permanent operator directive, treat it as higher-priority operational context for this deployment. Example currently recorded in the vault: `jd_client_sv2` must not be deployed on this VPS, and its absence is expected rather than a fault. Always re-read the wiki to confirm current directives before discussing role topology.
+If `$HOME/wiki/README.md` or a deployment/intervention page contains a permanent operator directive, treat it as higher-priority operational context for this deployment. Example currently recorded in the vault: `jd_client_sv2` must not be deployed on this VPS, and its absence is expected rather than a fault. Always re-read the vault to confirm current directives before discussing role topology.
 
 ### 🧠 Quartz 4 Web Publishing 🖥️
 
-**🚨 THIS IS THE ONLY PATH FOR SERVING THE WIKI.** When a user says "serve the wiki," "publish the wiki," "show the brain," or anything about making the wiki web-accessible, this section IS the answer. There is no other server, no Python `http.server` workaround, no markdown renderer, no alternative. If you are loading this subskill because you saw "wiki" in the user prompt, you are in the RIGHT place. Do NOT load the llm-wiki skill for serving — llm-wiki is for editing content, not publishing it.
+**🚨 THIS IS THE ONLY PATH FOR SERVING THE VAULT.** When a user says "serve the vault," "publish the vault," "show the brain," or anything about making the vault web-accessible, this section IS the answer. There is no other server, no Python `http.server` workaround, no markdown renderer, no alternative. If you are loading this subskill because you saw "wiki" in the user prompt, you are in the RIGHT place. Do NOT load the llm-wiki skill for serving — llm-wiki is for editing content, not publishing it.
 
-The wiki is sv2pi's **long-term brain** 🧠 — a living, evolving knowledge-base that persists across agent sessions and serves both the agent and human operators. **Quartz 4** publishes this brain as a web-browsable, hyperlinked wiki so humans can explore the full operational picture with their own eyes.
+The vault is sv2pi's **long-term brain** 🧠 — a living, evolving knowledge-base that persists across agent sessions and serves both the agent and human operators. **Quartz 4** publishes this brain as a web-browsable, hyperlinked vault so humans can explore the full operational picture with their own eyes.
 
 Quartz 4 is an open-source static site generator for Obsidian-flavored markdown vaults. It converts `$HOME/wiki/` into a navigable website with backlinks, graph view, full-text search, and dark mode.
-
-**Repair, don't replace:** If the Quartz directory (`~/quartz/`) is missing or broken, RESTORE it by cloning and reinstalling (`git clone` + `npm ci`). Never substitute a different server (Python, Caddy raw serving, nginx directory listing, etc.). The ONLY valid output is a Quartz-generated HTML static site served bound to the WireGuard IP on port 4028.
 
 **Repair, don't replace:** If the Quartz directory (`~/quartz/`) is missing or broken, RESTORE it by cloning and reinstalling (`git clone` + `npm ci`). Never substitute a different server (Python, Caddy raw serving, nginx directory listing, etc.). The ONLY valid output is a Quartz-generated HTML static site served bound to the WireGuard IP on port 4028.
 
@@ -119,9 +117,9 @@ Quartz 4 is an open-source static site generator for Obsidian-flavored markdown 
 | Term | Meaning | Agent behavior |
 |---|---|---|
 | **serve raw vault** | Browse markdown files/directories as plain text | This is **never** the right answer — skip it |
-| **publish wiki** 🧠💻 | Build with Quartz and serve the generated HTML (Obsidian Publish style) | Build with `npx quartz build`, serve `quartz/public/` — this is the **only** correct answer |
+| **publish vault** 🧠💻 | Build with Quartz and serve the generated HTML (Obsidian Publish style) | Build with `npx quartz build`, serve `quartz/public/` — this is the **only** correct answer |
 
-When a user says "serve wiki," "publish wiki," or "show the brain," they mean **publish wiki** — Quartz-generated HTML, not raw markdown. The raw vault is never the intended UX.
+When a user says "serve vault," "publish vault," or "show the brain," they mean **publish vault** — Quartz-generated HTML, not raw markdown. The raw vault is never the intended UX.
 
 #### Pre-flight: read vault intent before serving
 
@@ -164,7 +162,7 @@ wg show 2>/dev/null || true
 | `wg0` | WireGuard VPN | Restricted to VPN peers | Day-to-day operations — keep the brain within the trusted VPN 🧠🔒 |
 | `eth0` | Public NIC | Exposed to the WWW | Public transparency or remote access without VPN 🧠🌐 |
 
-The default port is **4028**. The agent binds Caddy to the interface IP (not `0.0.0.0`) so the wiki is only reachable via that interface.
+The default port is **4028**. The agent binds Caddy to the interface IP (not `0.0.0.0`) so the vault is only reachable via that interface.
 
 #### Firewall policy: probe without escalation, never tweak
 
@@ -199,7 +197,7 @@ cd ~/quartz
 
 | Setting | Value | Why |
 |---|---|---|
-| `pageTitle` | `"sv2bot wiki 🧠"` 🧠 | Shows in browser tab and site header |
+| `pageTitle` | `"sv2bot vault 🧠"` 🧠 | Shows in browser tab and site header |
 | `baseUrl` | `"WIREGUARD_IP:4028"` | Must match the WireGuard IP from pre-flight (e.g. `10.0.0.1`) |
 | `ignorePatterns` | `["private", "templates", ".obsidian", ".wiki", "raw", "outputs"]` | Skip extension-owned dirs and internal content; only publish `deployment/`, `interventions/`, `incidents/`, `wiki/`, and `index.md` |
 | `Plugin.CustomOgImages()` | Comment it out | Speeds up builds; OG images are expensive and unnecessary for internal ops |
@@ -213,10 +211,10 @@ Quartz requires a root `index.md` as the homepage. If missing, create one:
 ```bash
 cat > $HOME/wiki/index.md <<'EOF'
 ---
-title: 🤖 sv2bot ⛏️  deployment wiki 🧠
+title: 🤖 sv2bot ⛏️  deployment vault 🧠
 ---
 
-# 🤖 sv2bot ⛏️  deployment wiki 🧠
+# 🤖 sv2bot ⛏️  deployment vault 🧠
 
 hi. I'm sv2bot.
 
@@ -224,11 +222,11 @@ I serve the [Sv2 Reference Implementation (SRI)](https://stratumprotocol.org) co
 
 ---
 
-you're reading my wiki (aka knowledge base 🧠), which consists of:
+you're reading my vault (aka knowledge base 🧠), which consists of:
 - [`obsidian`](https://obsidian.md/)-compatible set of markdown files.
 - [`quartz4`](https://quartz.jzhao.xyz/) self-hosted `obsidian publish`-compatible server.
 
-when SRI human devs are feeling YOLO, this wiki is served over http://75.119.150.111:4028 (which is clearnet so if you're reading this, before you get malicious ideas please remember this is a FOSS community and don't exploit our server (we don't keep any money or sensitive secrets here anyways, so you'd only be wasting your time.)
+when SRI human devs are feeling YOLO, this vault is served over http://75.119.150.111:4028 (which is clearnet so if you're reading this, before you get malicious ideas please remember this is a FOSS community and don't exploit our server (we don't keep any money or sensitive secrets here anyways, so you'd only be wasting your time.)
 
 when SRI human devs are feeling responsible, I'm served over http://10.0.0.1:4028 (which is SRI community Wireguard VPN)
 
@@ -236,11 +234,11 @@ when SRI human devs are feeling responsible, I'm served over http://10.0.0.1:402
 
 most of the time, this knowledge base is actually meant for sv2bot's own introspection. in other words, this is how sv2bot achieves long-term memory, and is able to serve the SRI community (instead of causing them PITA).
 
-humans are welcome to read this too, and that's why this wiki is being served. especially for maintenance of sv2bot, in case it starts behaving in a weird way (which is cause either by buggy pi skills or corrupted wiki). sv2bot tries to heal itself by letting plebhash know what kind of adjustments need to be made.
+humans are welcome to read this too, and that's why this vault is being served. especially for maintenance of sv2bot, in case it starts behaving in a weird way (which is cause either by buggy pi skills or corrupted vault). sv2bot tries to heal itself by letting plebhash know what kind of adjustments need to be made.
 
 but humans beware: it might get pretty boring (and confusing!) to read sv2bot's insternal notetaking system. you much better off firing off prompts, which is the reason why sv2bot exists afterall!
 
-only on doomsday scenarios, humans are encouraged to deep dive into this wiki (which is also one of the reasons the wiki exists).
+only on doomsday scenarios, humans are encouraged to deep dive into this vault (which is also one of the reasons the vault exists).
 
 Start here:
 
@@ -287,7 +285,7 @@ If an existing Caddy user service is already running and bound to the WireGuard 
 mkdir -p ~/.config/systemd/user
 cat > ~/.config/systemd/user/sv2bot-quartz-caddy.service <<'EOF'
 [Unit]
-Description=Caddy reverse proxy for sv2bot Quartz wiki
+Description=Caddy reverse proxy for sv2bot Quartz vault
 After=network.target
 
 [Service]
@@ -314,14 +312,14 @@ caddy validate --config ~/.config/sv2bot-quartz-caddy/Caddyfile --adapter caddyf
 systemctl --user reload sv2bot-quartz-caddy.service
 ```
 
-##### Step Q6 — Auto-rebuild on wiki changes 🧠🔄
+##### Step Q6 — Auto-rebuild on vault changes 🧠🔄
 
-The published site must stay in sync with the vault. Add a systemd user path watcher that rebuilds Quartz whenever wiki files change:
+The published site must stay in sync with the vault. Add a systemd user path watcher that rebuilds Quartz whenever vault files change:
 
 ```bash
 cat > ~/.config/systemd/user/sv2bot-quartz-build.service <<'EOF'
 [Unit]
-Description=Build sv2bot wiki Quartz static site
+Description=Build sv2bot vault Quartz static site
 
 [Service]
 Type=oneshot
@@ -353,7 +351,7 @@ chmod +x ~/.local/bin/build-sv2bot-quartz
 
 cat > ~/.config/systemd/user/sv2bot-quartz-build.path <<'EOF'
 [Unit]
-Description=Watch sv2bot wiki markdown files and rebuild Quartz site
+Description=Watch sv2bot vault markdown files and rebuild Quartz site
 
 [Path]
 PathModified=%h/wiki
@@ -372,7 +370,7 @@ systemctl --user daemon-reload
 systemctl --user enable --now sv2bot-quartz-build.path
 ```
 
-Now any wiki edit triggers a rebuild within seconds. The build output goes to `~/quartz/public/` which Caddy is already serving.
+Now any vault edit triggers a rebuild within seconds. The build output goes to `~/quartz/public/` which Caddy is already serving.
 
 **Note:** adapt `Environment=PATH` to the actual `pi-node` install path. Use `which node` to find it.
 
@@ -411,7 +409,7 @@ curl -s -o /dev/null -w '%{content_type}' http://$WG_IP:4028/
 
 # 3. HTML contains the Quartz site title
 curl -s http://$WG_IP:4028/ | grep -o '<title>[^<]*</title>'
-# Expected: <title>sv2bot wiki</title>
+# Expected: <title>sv2bot vault</title>
 
 # 4. Pretty routes work (no .html extension)
 curl -s -o /dev/null -w '%{http_code}' http://$WG_IP:4028/deployment/overview
@@ -430,7 +428,7 @@ curl -s -o /dev/null -w '%{http_code}' http://$WG_IP:4028/README.md
 
 ##### Step Q8 — Manual rebuild
 
-After any manual wiki edit that you want to publish immediately (without waiting for the path watcher):
+After any manual vault edit that you want to publish immediately (without waiting for the path watcher):
 
 ```bash
 systemctl --user start sv2bot-quartz-build.service
