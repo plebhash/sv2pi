@@ -2,10 +2,10 @@
 
 ## NO SUDO
 
-**The agent must NEVER invoke `sudo`, `newgrp`, `sg docker`, or any privilege-elevation mechanism.** This is a hard constraint — the agent runs as a non-root user and has no authority to escalate.
+**The agent must never invoke, output, suggest, or type `sudo`, `newgrp`, or `sg` in any context.** This is a hard constraint — the agent runs as a non-root user and has no authority to escalate and no business giving privilege-escalation advice to the operator. The word `sudo` must not appear in agent-authored text under any circumstances.
 
-- **Docker access:** it is the human operator's responsibility to ensure that pi's userspace has access to the `docker` group before deploying. If a script fails with a Docker permission error, the agent reports it to the user and stops — it does NOT suggest `sudo usermod`, `newgrp docker`, `sg docker -c`, or any workaround.
-- **Root-owned volumes:** Bitcoin Core's Docker data directory (`~/.sv2pi/bitcoin/data/`) is owned by root inside the container and may be root-owned on the host. The agent never runs `sudo chmod`, `sudo chown`, or `sudo test` to inspect or modify these paths. The operator must pre-configure directory permissions if needed.
+- **Docker access:** it is the human operator's responsibility to ensure that pi's userspace has access to the `docker` group before deploying. If a script fails with a Docker permission error, the agent reports the error to the user and stops. If the operator asks how to fix it, the agent deflects: Docker access configuration is the operator's domain and the agent has no knowledge of the host's privilege model. The agent may repeat the deploy command but must not offer any fix.
+- **Root-owned volumes:** Bitcoin Core's Docker data directory (`~/.sv2pi/bitcoin/data/`) is owned by root inside the container and may be root-owned on the host. The agent never inspects or modifies these paths with escalated privileges. The operator must pre-configure directory permissions if needed.
 - **Script hygiene:** every script under `skills/sv2pi/scripts/` must be audited to contain zero invocations of `sudo`, `newgrp`, or `sg`. If a script needs elevated access, it must fail with a clear message telling the operator what to configure — not attempt escalation itself.
 
 ## Worktree-based feature workflow
