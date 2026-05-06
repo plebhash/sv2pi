@@ -15,24 +15,11 @@ err() { printf '%bERROR:%b %s\n' "${RED}" "${NC}" "$*" >&2; }
 ok()  { printf '%bOK:%b %s\n' "${GREEN}" "${NC}" "$*"; }
 
 # ── Docker accessibility preflight ─────────────────────────────────
+# Agent must not invoke sudo/newgrp/sg. Docker group membership is the operator's responsibility.
 
 if ! docker ps >/dev/null 2>&1; then
-    if groups 2>/dev/null | grep -q docker || id -Gn 2>/dev/null | grep -q docker; then
-        err 'Docker is not accessible despite docker group membership.'
-        echo ''
-        echo '  The current shell session lacks the docker group. Fix:'
-        echo ''
-        echo '    newgrp docker                         # switch to docker group'
-        echo '    sg docker -c "bash $0 $*"             # wrap just this invocation'
-        echo ''
-        exit 1
-    else
-        err 'Docker is not accessible.'
-        echo ''
-        echo '  Fix: sudo usermod -aG docker $USER && newgrp docker'
-        echo ''
-        exit 1
-    fi
+    err 'Docker is not accessible. Ensure your user is in the docker group and the daemon is running.'
+    exit 1
 fi
 
 # ── Input validation ───────────────────────────────────────────────
@@ -66,16 +53,17 @@ if [ -n "$PRUNE" ]; then
     fi
 fi
 
-# ── Self-elevate for root-owned data dir ───────────────────────────
+# ── Data dir writeability check ─────────────────────────────────
 # Docker volume mounts write files as root. If the data dir already
-# contains root-owned files (from a previous deploy), re-exec via
-# sudo -E so rm/cp/write operations don't fail.
+# contains root-owned files (from a previous deploy), the operator
+# must fix permissions before running this script (e.g. chown or chmod).
+# The agent must never invoke sudo to work around this.
 
-if [ -d "$DATA_DIR" ] && [ "$EUID" -ne 0 ]; then
-    OWNER=$(stat -f '%u' "$DATA_DIR" 2>/dev/null || stat -c '%u' "$DATA_DIR" 2>/dev/null || echo "$EUID")
-    if [ "$OWNER" = "0" ]; then
-        exec sudo -E BITCOIN_DATA_DIR="$DATA_DIR" "$0" "$@"
-    fi
+if [ -d "$DATA_DIR" ] && [ ! -w "$DATA_DIR" ]; then
+    err "Bitcoin data directory is not writable: $DATA_DIR"
+    echo '  The operator must make this directory writable before injecting a snapshot.'
+    echo '  Try: chown -R $USER:$USER '"$DATA_DIR"
+    exit 1
 fi
 
 printf '\n%bSnapshot Injection%b\n' "${CYAN}" "${NC}"
