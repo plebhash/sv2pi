@@ -1,13 +1,13 @@
 ---
 name: sv2pi
-description: Agentic deployment of the Stratum V2 Reference Implementation (SRI) for Bitcoin mainnet. Use when deploying or managing Docker-based SRI apps (pool_sv2, jd_client_sv2, translator_sv2, sv2_tp) alongside Bitcoin Core with IPC. Also use for crash diagnostics and health monitoring of already-deployed SRI instances. Scope is strictly production mainnet — not for development, testing, or devnet work.
+description: Agentic deployment of the Stratum V2 Reference Implementation (SRI) for Bitcoin mainnet. Use when deploying or managing Docker-based SRI apps (pool_sv2, jd_client_sv2, translator_sv2, sv2_tp) alongside Bitcoin Core with IPC. Also use for deploying sv2-cpu-miner as a testing tool to verify Pool and JDC share flow, crash diagnostics, and health monitoring of already-deployed instances. Scope is strictly production mainnet — not for development, testing, or devnet work.
 ---
 
 # sv2pi — SRI Agentic Deployment
 
 Agentic deployment skill for the [Stratum V2 Reference Implementation](https://github.com/stratum-mining) on Bitcoin mainnet.
 
-This skill deploys Bitcoin Core and four SRI-related Docker roles:
+This skill deploys Bitcoin Core, four SRI-related Docker roles, and one testing tool:
 | Role | Docker Image |
 |---|---|
 | Bitcoin Core | `bitcoin/bitcoin:latest` |
@@ -15,6 +15,7 @@ This skill deploys Bitcoin Core and four SRI-related Docker roles:
 | Pool (with embedded JDS) | `stratumv2/pool_sv2` |
 | Job Declarator Client (JDC) | `stratumv2/jd_client_sv2` |
 | Translator Proxy (SV1→SV2 bridge) | `stratumv2/translator_sv2` |
+| Sv2 CPU Miner (testing) | `rust:latest` (clones `plebhash/sv2-cpu-miner`) |
 
 **sv2-ui** (`stratumv2/sv2-ui`) is planned for a follow-up release and is currently out of scope. If a user asks about sv2-ui, acknowledge it is on the roadmap but not yet available in this skill.
 
@@ -350,6 +351,103 @@ Track these metrics over time:
 | `shares_accepted_total` | Cumulative accepted shares |
 | `sv1.clients` count | Legacy SV1 miners connected |
 
+### Step 11 — Deploy Sv2 CPU Miner
+
+The Sv2 CPU miner is a testing tool (`github.com/plebhash/sv2-cpu-miner`). It is not part of the SRI suite. Deploy it to verify Pool and JDC deployments by simulating real miners that submit shares over SV2 channels.
+
+**Prerequisites:** A running pool (Step 6) or JDC (Step 7) must be up and accepting connections. The miner connects directly to whichever Sv2 endpoint the user specifies.
+
+#### Configuration Parameters
+
+Load `{baseDir}/references/sv2-apps/cpu-miner-config-reference.md` for semantic explanations of every parameter. Key parameters the agent MUST resolve:
+
+| Parameter | Default | How to resolve |
+|---|---|---|
+| `server_addr` | `127.0.0.1:3333` | Pool's `listen_address` (direct) or JDC's `listening_address` (via JDC). Default 3333 for pool, 34265 for JDC. |
+| `auth_pk` | `9auqWEz...` (SRI example) | The pool's or JDC's `authority_public_key`. Read from `~/.sv2pi/pool/config/pool-config.toml` or `~/.sv2pi/jdc/config/jdc-config.toml`. |
+| `n_extended_channels` | `2` | Number of Extended Channels. Set to 0 when connecting directly to a pool (no JDS intermediary). |
+| `n_standard_channels` | `2` | Number of Standard Channels. Always valid. At least one channel type must be > 0. |
+| `cpu_usage_percent` | `100` | CPU throttle 1–100. Default 100 (full speed). Lower for testing without maxing out the host. |
+
+Additional parameters with defaults: `user_identity` (`username`), `device_id` (`sv2-cpu-miner`), `nominal_hashrate_multiplier` (`1.0`), `single_submit` (`false`).
+
+#### User intent extraction
+
+When the user asks to deploy the cpu miner, extract intent from their phrasing:
+- **"connect to the pool"** → `server_addr` = `127.0.0.1:3333`, `auth_pk` from pool config
+- **"connect to the JDC"** → `server_addr` = `127.0.0.1:34265`, `auth_pk` from JDC config
+- **"X extended, Y standard channels"** → set `n_extended_channels` and `n_standard_channels`
+- **"N% CPU"** → set `cpu_usage_percent`
+- If the user says "use defaults" or doesn't specify, apply the defaults in the table above
+
+**CRITICAL: Always resolve `auth_pk` from the deployed config files.** Never guess it. If neither pool nor JDC is deployed, tell the user a pool or JDC must be deployed first.
+
+#### Deployment
+
+```bash
+bash {baseDir}/scripts/deploy-cpu-miner.sh \
+  <server_addr> <auth_pk> <n_extended_channels> <n_standard_channels> <cpu_usage_percent>
+```
+
+This:
+- Clones `https://github.com/plebhash/sv2-cpu-miner` to `~/.sv2pi/cpu-miner/src/`
+- Writes `config.toml` with the specified parameters
+- Pulls `rust:latest` Docker image
+- Starts a container (`sv2-cpu-miner`) with `--network host`, builds `--release`, and runs the miner
+
+Compilation takes 2–5 minutes (Rust release build + dependency fetching). The script handles the Docker pull separately to avoid timeout issues.
+
+#### Verification
+
+After compiling, the miner logs show share submissions. Verify:
+
+```bash
+# Check miner share submissions (wait 2-3 minutes for compilation first)
+docker logs sv2-cpu-miner --tail 50 | grep -E 'Submitting share'
+
+# Verify extended shares
+docker logs sv2-cpu-miner --tail 50 | grep "SubmitSharesExtended"
+
+# Verify standard shares
+docker logs sv2-cpu-miner --tail 50 | grep "SubmitSharesStandard"
+```
+
+Cross-reference with pool monitoring API:
+
+```bash
+# Confirm client is connected
+curl -s http://localhost:9090/api/v1/clients | python3 -m json.tool
+
+# Count active channels
+curl -s http://localhost:9090/api/v1/server/channels | python3 -m json.tool
+```
+
+Expected: the pool API shows one client with `extended_channels_count` and `standard_channels_count` matching the deployment parameters. Shares appear in both the miner logs and the pool's `shares_accepted_total`.
+
+#### Crash Diagnostics
+
+If the miner container exits or logs show errors:
+
+```bash
+# Is the container running?
+docker ps --filter "name=sv2-cpu-miner"
+
+# Check exit status if stopped
+docker ps -a --filter "name=sv2-cpu-miner" --format "{{.Status}}"
+
+# Compilation errors (during build phase)
+docker logs sv2-cpu-miner --tail 30 | grep -i 'error'
+
+# Connectivity errors (after build, during runtime)
+docker logs sv2-cpu-miner --tail 30 | grep -iE 'connect|reject|timeout|fail'
+```
+
+Common failure modes:
+- **`edition2024` not stabilized** → wrong Rust image (must be `rust:latest`, not older slim tags)
+- **`Noise handshake failed`** → `auth_pk` doesn't match the server's `authority_public_key`
+- **`Connection refused`** → `server_addr` is wrong or the target service isn't running
+- **Container exits immediately** → compile error; check full logs for the specific Rust error
+
 ---
 
 ## Crash Diagnostics
@@ -358,7 +456,7 @@ When something fails:
 
 ### 1. Check Container Status
 ```bash
-docker ps -a --filter "name=pool_sv2" --filter "name=jd_client_sv2" --filter "name=translator_sv2" --filter "name=sv2_tp"
+docker ps -a --filter "name=pool_sv2" --filter "name=jd_client_sv2" --filter "name=translator_sv2" --filter "name=sv2_tp" --filter "name=sv2-cpu-miner"
 ```
 
 ### 2. Inspect Logs Against Source
@@ -454,6 +552,7 @@ Then update `authority_public_key` and `authority_secret_key` in each app's conf
 - `{baseDir}/references/sv2-apps/monitoring-api.md` — HTTP monitoring API reference for each app
 - `{baseDir}/references/sv2-apps/config-reference.md` — every config parameter with SV2-spec context and production guidance
 - `{baseDir}/references/sv2-apps/bitcoin-core-version.md` — Bitcoin Core version compatibility per SRI release
+- `{baseDir}/references/sv2-apps/cpu-miner-config-reference.md` — sv2-cpu-miner config parameters and verification guide
 
 ### Frozen Docker config templates (bundled per release tag)
 These ship with the skill — no clone needed for known tags:
@@ -474,3 +573,4 @@ The sv2-tp frozen directory contains:
 ### Live sources (fetched at runtime)
 - `https://github.com/stratum-mining/sv2-apps` — for `main` branch Docker config templates, unknown future tags, and source code for log comparison
 - `https://github.com/stratum-mining/sv2-spec` — protocol specification
+- `https://github.com/plebhash/sv2-cpu-miner` — Sv2 CPU Miner source and `config.toml` template (cloned by `deploy-cpu-miner.sh`)
