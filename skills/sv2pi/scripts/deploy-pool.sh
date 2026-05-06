@@ -13,8 +13,8 @@ if [ -z "$BITCOIN_IPC_PATH" ]; then
     exit 1
 fi
 
-# Socket check: retry with sudo if plain test fails (root-owned volume)
-if [ ! -S "$BITCOIN_IPC_PATH" ] && ! sudo test -S "$BITCOIN_IPC_PATH" 2>/dev/null; then
+# Socket check. Agent does not invoke sudo; operator must ensure socket is readable.
+if [ ! -S "$BITCOIN_IPC_PATH" ]; then
     echo "ERROR: Bitcoin IPC socket not found at: $BITCOIN_IPC_PATH"
     echo "  Verify Bitcoin Core is running with -ipcbind=unix"
     exit 1

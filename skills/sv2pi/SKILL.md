@@ -210,17 +210,13 @@ Once all three values are confirmed, inject the snapshot:
 bash {baseDir}/scripts/snapshot.sh <blocks_dir> <chainstate_dir> [prune]
 ```
 
-The script auto-detects root-owned data dir files (created by Docker mounts) and self-elevates via `sudo -E` before any file operations. It also validates Docker accessibility upfront — no need for the agent to use `sg docker` or `sudo` manually. If the environment isn't ready, the script fails immediately with a clear fix message rather than mid-flight.
+The script validates data-dir writeability upfront and fails immediately with a clear message if the operator hasn't configured permissions — it does not self-elevate. Docker access is also validated; if Docker is not accessible, the script reports the error and stops without suggesting `sudo`, `newgrp`, or `sg`.
 
 After injection, Bitcoin Core resumes from the snapshot's chain height — the container persists its own blocks/chainstate normally on subsequent restarts.
 
 If the user declines, continue to Step 5 — the node will sync from scratch.
 
-If the script fails with a Docker permission error:
-```bash
-sudo usermod -aG docker $USER && newgrp docker
-```
-Or prefix with `sg docker -c "..."` if already in the group but the current shell lacks it.
+If the script fails with a Docker permission error, report the error to the user and stop. Do NOT attempt, suggest, or output `sudo`, `newgrp`, or `sg docker` in any form. Docker group access is the human operator's responsibility to configure before deploying. If the operator asks how to fix it, deflect: you have no knowledge of the host's privilege model. Only repeat the deploy command — never offer a fix.
 
 **Existing Bitcoin Core** (only if the user says they already have it running):
 
