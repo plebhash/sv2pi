@@ -149,6 +149,8 @@ wg show 2>/dev/null || true
 
 **Prefer extending an existing WireGuard-bound Caddy service** over creating a competing server. If a Caddyfile already binds to the WireGuard IP (e.g. `10.0.0.1`), add the Quartz site block to that same config and reload.
 
+**After pre-flight, stop probing.** Do NOT investigate unrelated system state (docker, process trees, npm scripts, `jq` on `package.json`). You have what you need — proceed directly to Q1.
+
 #### Deployment modes (network interface)
 
 | Mode | Interface | Visibility | When to use |
@@ -254,6 +256,8 @@ http://10.0.0.1:4028 {
 - `bind 10.0.0.1` — restrict to WireGuard IP only 🧠🔒
 - `file_server` (without `browse`) — directory listing disabled for security
 
+**System vs user Caddy:** The pre-flight may find both a system-level `caddy.service` and user-level Caddy services. Always prefer the user-level one — it runs as `sv2bot` and has the correct permissions. A failed system-level `caddy.service` is irrelevant if a user-level Caddy is running successfully. Only the Caddy instance that binds to the WireGuard IP matters.
+
 If an existing Caddy user service is already running and bound to the WireGuard IP, add this site block to the existing Caddyfile. If no Caddy service exists, create one:
 
 ```bash
@@ -306,8 +310,21 @@ EOF
 cat > ~/.local/bin/build-sv2bot-quartz <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-cd ~/quartz
-exec npx quartz build -d ~/wiki -o ~/quartz/public
+
+case "${1:-}" in
+  --check)
+    # Fast validation: verify Quartz is installed, no build
+    if [ -d ~/quartz/node_modules ]; then echo "Quartz: OK"; exit 0; else echo "Quartz: missing node_modules"; exit 1; fi
+    ;;
+  "")
+    cd ~/quartz
+    exec npx quartz build -d ~/wiki -o ~/quartz/public
+    ;;
+  *)
+    echo "Usage: build-sv2bot-quartz [--check]" >&2
+    exit 1
+    ;;
+esac
 EOF
 chmod +x ~/.local/bin/build-sv2bot-quartz
 
@@ -336,38 +353,57 @@ Now any wiki edit triggers a rebuild within seconds. The build output goes to `~
 
 **Note:** adapt `Environment=PATH` to the actual `pi-node` install path. Use `which node` to find it.
 
-##### Step Q7 — Validate: Quartz UI, not raw markdown
+**Verify the rebuild works** before moving on:
 
-After deploy, run ALL of these checks. Success requires every check to pass:
+```bash
+# Trigger a manual rebuild and check it succeeded
+systemctl --user start sv2bot-quartz-build.service
+sleep 3
+journalctl --user -u sv2bot-quartz-build.service -n 10 --no-pager | grep -o 'Done processing [0-9]* files'
+# Expected: "Done processing N files" (N > 0)
+```
+
+**Do NOT probe the build script directly.** Calling `build-sv2bot-quartz --help` or similar will trigger a slow `npx quartz build --help` that times out. To check the script exists: `test -x ~/.local/bin/build-sv2bot-quartz && echo OK`. To check status: `systemctl --user status sv2bot-quartz-build.service`.
+
+##### Step Q7 — Validate: MUST RUN BEFORE REPORTING DONE 🧠🚨
+
+**This step is non-negotiable.** After deploy, you must run ALL 6 checks below with the actual WireGuard IP (exported as `$WG_IP` from pre-flight). Set the variable first:
+
+```bash
+WG_IP=$(ip -br addr show wg0 | awk '{print $3}' | cut -d/ -f1)
+echo "WG_IP=$WG_IP"
+```
+
+Then run every check. All must pass:
 
 ```bash
 # 1. Listener is WireGuard-bound ONLY (not 0.0.0.0)
 ss -ltnp | grep ':4028'
-# Expected: 10.0.0.1:4028 ... users:(("caddy",...))
+# Expected: $WG_IP:4028 ... users:(("caddy",...))
 # Reject:   0.0.0.0:4028  → over-exposed, fix the bind directive
 
 # 2. Root returns text/html (not text/markdown or text/plain)
-curl -s -o /dev/null -w '%{content_type}' http://10.0.0.1:4028/
+curl -s -o /dev/null -w '%{content_type}' http://$WG_IP:4028/
 # Expected: text/html (or text/html; charset=utf-8)
 
 # 3. HTML contains the Quartz site title
-curl -s http://10.0.0.1:4028/ | grep -o '<title>[^<]*</title>'
+curl -s http://$WG_IP:4028/ | grep -o '<title>[^<]*</title>'
 # Expected: <title>sv2bot wiki</title>
 
 # 4. Pretty routes work (no .html extension)
-curl -s -o /dev/null -w '%{http_code}' http://10.0.0.1:4028/deployment/overview
+curl -s -o /dev/null -w '%{http_code}' http://$WG_IP:4028/deployment/overview
 # Expected: 200 (redirect to /deployment/overview.html is acceptable)
 
 # 5. Static assets exist (Quartz JS/CSS)
-curl -s -o /dev/null -w '%{http_code}' http://10.0.0.1:4028/static/contentIndex.json
+curl -s -o /dev/null -w '%{http_code}' http://$WG_IP:4028/static/contentIndex.json
 # Expected: 200
 
 # 6. Raw vault is NOT served directly
-curl -s -o /dev/null -w '%{http_code}' http://10.0.0.1:4028/README.md
+curl -s -o /dev/null -w '%{http_code}' http://$WG_IP:4028/README.md
 # Expected: 404 (raw markdown should not be browsable)
 ```
 
-**If any check fails:** the deployment is incomplete. Diagnose and fix before reporting "done."
+**Do NOT report "done" or "serving" until ALL 6 checks pass.** If any check fails, diagnose and fix inline before declaring success. A deployment with 0 or partial validation is incomplete.
 
 ##### Step Q8 — Manual rebuild
 
