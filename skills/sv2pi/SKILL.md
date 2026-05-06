@@ -1,6 +1,6 @@
 ---
 name: sv2pi
-description: Agentic deployment of the Stratum V2 Reference Implementation (SRI) for Bitcoin mainnet. Use when deploying or managing Docker-based SRI apps (pool_sv2, jd_client_sv2, translator_sv2, sv2_tp) alongside Bitcoin Core with IPC. Also use for crash diagnostics and health monitoring of already-deployed SRI instances. Scope is strictly production mainnet — not for development, testing, or devnet work.
+description: Agentic deployment of the Stratum V2 Reference Implementation (SRI) for Bitcoin mainnet. Use when deploying or managing Docker-based SRI apps (pool_sv2, jd_client_sv2, translator_sv2, sv2_tp) alongside Bitcoin Core with IPC. Also use for crash diagnostics, health monitoring of already-deployed SRI instances, and serving/publishing the sv2pi operations wiki via Quartz 4 over WireGuard. Scope is strictly production mainnet — not for development, testing, or devnet work.
 ---
 
 # sv2pi — SRI Agentic Deployment
@@ -104,16 +104,22 @@ If `$HOME/wiki/README.md` or a deployment/intervention page contains a permanent
 
 ### 🧠 Quartz 4 Web Publishing 🖥️
 
+**🚨 THIS IS THE ONLY PATH FOR SERVING THE WIKI.** When a user says "serve the wiki," "publish the wiki," "show the brain," or anything about making the wiki web-accessible, this section IS the answer. There is no other server, no Python `http.server` workaround, no markdown renderer, no alternative. If you are loading this subskill because you saw "wiki" in the user prompt, you are in the RIGHT place. Do NOT load the llm-wiki skill for serving — llm-wiki is for editing content, not publishing it.
+
 The wiki is sv2pi's **long-term brain** 🧠 — a living, evolving knowledge-base that persists across agent sessions and serves both the agent and human operators. **Quartz 4** publishes this brain as a web-browsable, hyperlinked wiki so humans can explore the full operational picture with their own eyes.
 
 Quartz 4 is an open-source static site generator for Obsidian-flavored markdown vaults. It converts `$HOME/wiki/` into a navigable website with backlinks, graph view, full-text search, and dark mode.
+
+**Repair, don't replace:** If the Quartz directory (`~/quartz/`) is missing or broken, RESTORE it by cloning and reinstalling (`git clone` + `npm ci`). Never substitute a different server (Python, Caddy raw serving, nginx directory listing, etc.). The ONLY valid output is a Quartz-generated HTML static site served bound to the WireGuard IP on port 4028.
+
+**Repair, don't replace:** If the Quartz directory (`~/quartz/`) is missing or broken, RESTORE it by cloning and reinstalling (`git clone` + `npm ci`). Never substitute a different server (Python, Caddy raw serving, nginx directory listing, etc.). The ONLY valid output is a Quartz-generated HTML static site served bound to the WireGuard IP on port 4028.
 
 #### Terminology: serve vs publish
 
 | Term | Meaning | Agent behavior |
 |---|---|---|
-| **serve raw vault** | Browse markdown files/directories as plain text | Use Caddy `file_server browse` on the wiki vault root — this is the **wrong** default |
-| **publish wiki** 🧠💻 | Build with Quartz and serve the generated HTML (Obsidian Publish style) | Build with `npx quartz build`, serve `quartz/public/` via Caddy — this is the **correct** default |
+| **serve raw vault** | Browse markdown files/directories as plain text | This is **never** the right answer — skip it |
+| **publish wiki** 🧠💻 | Build with Quartz and serve the generated HTML (Obsidian Publish style) | Build with `npx quartz build`, serve `quartz/public/` — this is the **only** correct answer |
 
 When a user says "serve wiki," "publish wiki," or "show the brain," they mean **publish wiki** — Quartz-generated HTML, not raw markdown. The raw vault is never the intended UX.
 
