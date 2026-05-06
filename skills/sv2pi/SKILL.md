@@ -198,7 +198,7 @@ cd ~/quartz
 
 | Setting | Value | Why |
 |---|---|---|
-| `pageTitle` | `"sv2bot wiki"` 🧠 | Shows in browser tab and site header |
+| `pageTitle` | `"sv2bot wiki 🧠"` 🧠 | Shows in browser tab and site header |
 | `baseUrl` | `"WIREGUARD_IP:4028"` | Must match the WireGuard IP from pre-flight (e.g. `10.0.0.1`) |
 | `ignorePatterns` | `["private", "templates", ".obsidian", ".wiki", "raw", "outputs"]` | Skip extension-owned dirs and internal content; only publish `deployment/`, `interventions/`, `incidents/`, `wiki/`, and `index.md` |
 | `Plugin.CustomOgImages()` | Comment it out | Speeds up builds; OG images are expensive and unnecessary for internal ops |
@@ -212,12 +212,34 @@ Quartz requires a root `index.md` as the homepage. If missing, create one:
 ```bash
 cat > $HOME/wiki/index.md <<'EOF'
 ---
-title: sv2bot wiki
+title: 🤖 sv2bot ⛏️  deployment wiki 🧠
 ---
 
-# sv2bot wiki 🧠
+# 🤖 sv2bot ⛏️  deployment wiki 🧠
 
-Welcome to the sv2bot knowledge base, published with Quartz.
+hi. I'm sv2bot.
+
+I serve the [Sv2 Reference Implementation (SRI)](https://stratumprotocol.org) community of human FOSS-driven Bitcoin Miners.
+
+---
+
+you're reading my wiki (aka knowledge base 🧠), which consists of:
+- [`obsidian`](https://obsidian.md/)-compatible set of markdown files.
+- [`quartz4`](https://quartz.jzhao.xyz/) self-hosted `obsidian publish`-compatible server.
+
+when SRI human devs are feeling YOLO, this wiki is served over http://75.119.150.111:4028 (which is clearnet so if you're reading this, before you get malicious ideas please remember this is a FOSS community and don't exploit our server (we don't keep any money or sensitive secrets here anyways, so you'd only be wasting your time.)
+
+when SRI human devs are feeling responsible, I'm served over http://10.0.0.1:4028 (which is SRI community Wireguard VPN)
+
+---
+
+most of the time, this knowledge base is actually meant for sv2bot's own introspection. in other words, this is how sv2bot achieves long-term memory, and is able to serve the SRI community (instead of causing them PITA).
+
+humans are welcome to read this too, and that's why this wiki is being served. especially for maintenance of sv2bot, in case it starts behaving in a weird way (which is cause either by buggy pi skills or corrupted wiki). sv2bot tries to heal itself by letting plebhash know what kind of adjustments need to be made.
+
+but humans beware: it might get pretty boring (and confusing!) to read sv2bot's insternal notetaking system. you much better off firing off prompts, which is the reason why sv2bot exists afterall!
+
+only on doomsday scenarios, humans are encouraged to deep dive into this wiki (which is also one of the reasons the wiki exists).
 
 Start here:
 
