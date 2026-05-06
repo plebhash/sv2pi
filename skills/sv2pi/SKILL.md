@@ -24,15 +24,139 @@ Helper scripts at `{baseDir}/scripts/`. Reference docs at `{baseDir}/references/
 
 ## Stateful Context Model
 
-You build a stateful mental model of deployed SRI instances from three sources:
+You build a stateful mental model of deployed SRI instances from four sources:
 
-1. **SV2 Protocol Spec** — Understand what each app does and how they connect. See `{baseDir}/references/sv2-spec-overview.md`.
-2. **Log Observation** — Analyze the source code first to understand log format and error patterns, then grep logs for those patterns. NEVER load entire log files into context — they are too large and will burn tokens. Always use `--tail N` or pipe through `grep`.
-3. **HTTP API Probing** — Probe monitoring endpoints described in `{baseDir}/references/sv2-apps/monitoring-api.md`. This provides real-time hashrate, channel count, connected clients, shares accepted, and block data.
+1. **SV2 Operations Wiki** — Persistent operator memory lives at `$HOME/wiki` (`/home/sv2bot/wiki` on this VPS). It is an LLM Wiki vault managed by `pi-llm-wiki`; read it before making deployment-health claims or operational recommendations.
+2. **SV2 Protocol Spec** — Understand what each app does and how they connect. See `{baseDir}/references/sv2-spec-overview.md`.
+3. **Log Observation** — Analyze the source code first to understand log format and error patterns, then grep logs for those patterns. NEVER load entire log files into context — they are too large and will burn tokens. Always use `--tail N` or pipe through `grep`.
+4. **HTTP API Probing** — Probe monitoring endpoints described in `{baseDir}/references/sv2-apps/monitoring-api.md`. This provides real-time hashrate, channel count, connected clients, shares accepted, and block data.
 
-Use all three sources together. Logs give operational detail. APIs give quantitative state. Source code gives authoritative semantics.
+Use all four sources together. The wiki gives durable cross-session context and operator directives. Logs give operational detail. APIs give quantitative state. Source code gives authoritative semantics.
 
 **Concurrent human operators:** The stateful model is not authoritative. Human operators may concurrently interact with containers (stop, restart, reconfigure them). Always re-validate container state with `docker ps` before running any operation that depends on a running container. Never assume a previously-running container is still up.
+
+---
+
+## Persistent Operations Wiki (`pi-llm-wiki`)
+
+The sv2pi agent uses the `pi-llm-wiki` extension as persistent, Obsidian-compatible memory for this production VPS.
+
+### Vault location
+
+- Canonical vault root: `$HOME/wiki` (`/home/sv2bot/wiki`)
+- Do **not** recreate or rely on the removed legacy symlink `/home/sv2bot/.pi/agent/obsidian -> /home/sv2bot/wiki`.
+- Open and maintain `$HOME/wiki` directly.
+
+### Mandatory read-before-act workflow
+
+Before answering questions about deployment health, missing roles, crash state, operator intent, or whether to deploy/stop/restart anything:
+
+1. Read `$HOME/wiki/README.md` first.
+2. Read the relevant operational pages, especially:
+   - `$HOME/wiki/deployment/overview.md`
+   - `$HOME/wiki/deployment/bitcoin-core.md`
+   - `$HOME/wiki/deployment/pool-sv2.md`
+   - `$HOME/wiki/deployment/jd-client.md`
+   - `$HOME/wiki/deployment/translator.md`
+   - recent files under `$HOME/wiki/interventions/` and `$HOME/wiki/incidents/` when applicable
+3. Re-validate live state with `docker ps -a` and targeted probes before acting.
+4. After any meaningful action or discovery, update the appropriate wiki page(s) so future sessions inherit the new state.
+
+### Wiki layout and ownership
+
+The vault is a migrated operations knowledge base plus a standard `pi-llm-wiki` four-layer wiki:
+
+```text
+$HOME/wiki/
+├── README.md                  # top-level operator directives and usage instructions
+├── deployment/                # migrated sv2pi operational state pages
+├── interventions/             # operator/agent intervention records
+├── incidents/                 # crash reports and incident analyses
+├── raw/sources/               # immutable source packets; extension-owned
+├── wiki/                      # editable LLM Wiki pages: sources/entities/concepts/syntheses/analyses
+├── meta/                      # auto-generated registry/backlinks/log; extension-owned
+└── .wiki/                     # extension config/templates
+```
+
+Respect the `pi-llm-wiki` rules:
+
+- Never edit `$HOME/wiki/raw/`; capture new sources with `wiki_capture_source`.
+- Never edit `$HOME/wiki/meta/`; metadata is extension-generated.
+- Editable knowledge lives in `$HOME/wiki/wiki/` and the migrated sv2pi operations directories (`deployment/`, `interventions/`, `incidents/`).
+- Cross-reference durable notes with Obsidian `[[wikilinks]]` where useful.
+
+### Using wiki tools
+
+Use the `pi-llm-wiki` tools when maintaining structured knowledge:
+
+- `wiki_search` before creating new canonical pages, to avoid duplicates.
+- `wiki_capture_source` for URLs, local files, or pasted text that should become immutable evidence.
+- `wiki_ingest` after capture, then read `raw/sources/SRC-*/extracted.md` and synthesize into editable pages.
+- `wiki_ensure_page` for canonical entity/concept/synthesis/analysis pages.
+- `wiki_lint` for health checks and `wiki_rebuild_meta` only if metadata appears out of sync.
+- `wiki_log_event` for significant operational decisions when a structured event is useful.
+
+For direct operational pages in migrated directories, use normal file tools (`read`, `edit`, `write`) and keep entries concise, dated, and factual.
+
+### Operator directives in the wiki are binding
+
+If `$HOME/wiki/README.md` or a deployment/intervention page contains a permanent operator directive, treat it as higher-priority operational context for this deployment. Example currently recorded in the vault: `jd_client_sv2` must not be deployed on this VPS, and its absence is expected rather than a fault. Always re-read the wiki to confirm current directives before discussing role topology.
+
+### 🧠 Quartz 4 Web Publishing 🖥️
+
+The wiki is sv2pi's **long-term brain** 🧠 — a living, evolving knowledge-base that persists across agent sessions and serves both the agent and human operators. **Quartz 4** publishes this brain as a web-browsable, hyperlinked wiki so humans can explore the full operational picture with their own eyes.
+
+Quartz 4 is an open-source static site generator for Obsidian-flavored markdown vaults. It converts `$HOME/wiki/` into a navigable website with backlinks, graph view, full-text search, and dark mode.
+
+#### Deployment modes (network interface)
+
+| Mode | Interface | Visibility | When to use |
+|---|---|---|---|
+| `wg0` | WireGuard VPN | Restricted to VPN peers | Day-to-day operations — keep the brain within the trusted VPN 🧠🔒 |
+| `eth0` | Public NIC | Exposed to the WWW | Public transparency or remote access without VPN 🧠🌐 |
+
+The mode is selected by binding Quartz's dev server or reverse-proxying to the appropriate IP. Use `{baseDir}/scripts/deploy-quartz.sh $MODE`.
+
+#### Firewall policy: probe, never tweak
+
+**The agent must NEVER modify firewall rules.** Before deploying Quartz, probe the target interface to detect whether the port is reachable:
+
+```bash
+# Check if port 4028 (sv2pi Quartz wiki port) is open on the target interface
+sudo iptables -L INPUT -n --line-numbers | grep -E '4028|dpt:4028'
+sudo ufw status | grep 4028
+```
+
+If the port is blocked and the user explicitly wants that interface:
+- 🧠 Tell the operator: `"port 4028 is blocked on <iface> — human operator must open it"`
+- 🧠 Suggest the exact ufw/iptables command the operator should run
+- 🧠 Wait for confirmation before proceeding with the Quartz deployment on that interface
+
+#### Deploying Quartz 4
+
+```bash
+bash {baseDir}/scripts/deploy-quartz.sh <MODE>
+
+# MODE values:
+#   wg0  — bind to the WireGuard VPN IP (restricted)   🧠🔒
+#   eth0 — bind to the public network IP (WWW)          🧠🌐
+```
+
+The script:
+1. Clones/pulls `quartz` (v4) into `~/.sv2pi/quartz/`
+2. Symlinks or copies `$HOME/wiki/` content as the Quartz vault source
+3. Runs `npx quartz build` to generate the static site
+4. Starts a lightweight server (e.g. `npx quartz build --serve` or a simple python/http-server) bound to the chosen interface
+
+#### Maintaining the published brain
+
+After any wiki edit (`deployment/`, `interventions/`, `incidents/`, or `wiki/`), rebuild to sync the web view:
+
+```bash
+bash {baseDir}/scripts/deploy-quartz.sh rebuild
+```
+
+Human operators can bookmark the Quartz URL and browse the brain alongside the agent's real-time probes. Think of it as a split-screen console: the agent works the terminal while the human watches the evolving knowledge graph 🧠💻.
 
 ---
 
