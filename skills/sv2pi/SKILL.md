@@ -160,18 +160,13 @@ wg show 2>/dev/null || true
 
 The default port is **4028**. The agent binds Caddy to the interface IP (not `0.0.0.0`) so the wiki is only reachable via that interface.
 
-#### Firewall policy: probe, never tweak
+#### Firewall policy: probe without escalation, never tweak
 
-**The agent must NEVER modify firewall rules.** Before deploying Quartz, probe the target interface to detect whether port 4028 is reachable:
+**The agent must NEVER modify firewall rules.** The agent cannot read firewall rules directly (that requires escalated privileges which are forbidden). Before deploying Quartz, verify the listener is bound through the pre-flight `ss -ltnp` check — this confirms the service is reachable from localhost on the target interface.
 
-```bash
-sudo iptables -L INPUT -n --line-numbers | grep -E '4028|dpt:4028'
-sudo ufw status | grep 4028
-```
-
-If port 4028 is blocked and the user wants that interface:
-- 🧠 Tell the operator: `"port 4028 is blocked on <iface> — human operator must open it"`
-- 🧠 Suggest the exact ufw/iptables command (e.g. `sudo ufw allow in on wg0 to any port 4028`)
+If the port is blocked by an external firewall and the user needs it open:
+- 🧠 Tell the operator: `"port 4028 may be firewalled on <iface> — operator should verify and open if needed"`
+- 🧠 Do NOT output the command to open it — the operator knows their firewall tool
 - 🧠 Wait for operator confirmation before proceeding
 
 #### One-shot deploy recipe: Quartz build → Caddy serve
