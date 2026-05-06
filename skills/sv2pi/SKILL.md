@@ -26,7 +26,7 @@ Helper scripts at `{baseDir}/scripts/`. Reference docs at `{baseDir}/references/
 
 You build a stateful mental model of deployed SRI instances from four sources:
 
-1. **SV2 Operations Vault** — Persistent operator memory lives at `$HOME/wiki` (`/home/sv2bot/wiki` on this VPS). It is an LLM Wiki vault managed by `pi-llm-wiki`; read it before making deployment-health claims or operational recommendations.
+1. **SV2 Operations Vault** — Persistent operator memory lives at `$HOME/vault` (`/home/sv2bot/vault` on this VPS). It is an LLM Wiki vault managed by `pi-llm-wiki`; read it before making deployment-health claims or operational recommendations.
 2. **SV2 Protocol Spec** — Understand what each app does and how they connect. See `{baseDir}/references/sv2-spec-overview.md`.
 3. **Log Observation** — Analyze the source code first to understand log format and error patterns, then grep logs for those patterns. NEVER load entire log files into context — they are too large and will burn tokens. Always use `--tail N` or pipe through `grep`.
 4. **HTTP API Probing** — Probe monitoring endpoints described in `{baseDir}/references/sv2-apps/monitoring-api.md`. This provides real-time hashrate, channel count, connected clients, shares accepted, and block data.
@@ -43,22 +43,22 @@ The sv2pi agent uses the `pi-llm-wiki` extension as persistent, Obsidian-compati
 
 ### Vault location
 
-- Canonical vault root: `$HOME/wiki` (`/home/sv2bot/wiki`)
-- Do **not** recreate or rely on the removed legacy symlink `/home/sv2bot/.pi/agent/obsidian -> /home/sv2bot/wiki`.
-- Open and maintain `$HOME/wiki` directly.
+- Canonical vault root: `$HOME/vault` (`/home/sv2bot/vault`)
+- Do **not** recreate or rely on the removed legacy symlink `/home/sv2bot/.pi/agent/obsidian -> /home/sv2bot/vault`.
+- Open and maintain `$HOME/vault` directly.
 
 ### Mandatory read-before-act workflow
 
 Before answering questions about deployment health, missing roles, crash state, operator intent, or whether to deploy/stop/restart anything:
 
-1. Read `$HOME/wiki/README.md` first.
+1. Read `$HOME/vault/README.md` first.
 2. Read the relevant operational pages, especially:
-   - `$HOME/wiki/deployment/overview.md`
-   - `$HOME/wiki/deployment/bitcoin-core.md`
-   - `$HOME/wiki/deployment/pool-sv2.md`
-   - `$HOME/wiki/deployment/jd-client.md`
-   - `$HOME/wiki/deployment/translator.md`
-   - recent files under `$HOME/wiki/interventions/` and `$HOME/wiki/incidents/` when applicable
+   - `$HOME/vault/deployment/overview.md`
+   - `$HOME/vault/deployment/bitcoin-core.md`
+   - `$HOME/vault/deployment/pool-sv2.md`
+   - `$HOME/vault/deployment/jd-client.md`
+   - `$HOME/vault/deployment/translator.md`
+   - recent files under `$HOME/vault/interventions/` and `$HOME/vault/incidents/` when applicable
 3. Re-validate live state with `docker ps -a` and targeted probes before acting.
 4. After any meaningful action or discovery, update the appropriate vault page(s) so future sessions inherit the new state.
 
@@ -67,7 +67,7 @@ Before answering questions about deployment health, missing roles, crash state, 
 The vault is a migrated operations knowledge base plus a standard `pi-llm-wiki` four-layer wiki:
 
 ```text
-$HOME/wiki/
+$HOME/vault/
 ├── README.md                  # top-level operator directives and usage instructions
 ├── deployment/                # migrated sv2pi operational state pages
 ├── interventions/             # operator/agent intervention records
@@ -80,9 +80,9 @@ $HOME/wiki/
 
 Respect the `pi-llm-wiki` rules:
 
-- Never edit `$HOME/wiki/raw/`; capture new sources with `wiki_capture_source`.
-- Never edit `$HOME/wiki/meta/`; metadata is extension-generated.
-- Editable knowledge lives in `$HOME/wiki/wiki/` and the migrated sv2pi operations directories (`deployment/`, `interventions/`, `incidents/`).
+- Never edit `$HOME/vault/raw/`; capture new sources with `wiki_capture_source`.
+- Never edit `$HOME/vault/meta/`; metadata is extension-generated.
+- Editable knowledge lives in `$HOME/vault/wiki/` and the migrated sv2pi operations directories (`deployment/`, `interventions/`, `incidents/`).
 - Cross-reference durable notes with Obsidian `[[wikilinks]]` where useful.
 
 ### Using wiki tools
@@ -100,7 +100,7 @@ For direct operational pages in migrated directories, use normal file tools (`re
 
 ### Operator directives in the vault are binding
 
-If `$HOME/wiki/README.md` or a deployment/intervention page contains a permanent operator directive, treat it as higher-priority operational context for this deployment. Example currently recorded in the vault: `jd_client_sv2` must not be deployed on this VPS, and its absence is expected rather than a fault. Always re-read the vault to confirm current directives before discussing role topology.
+If `$HOME/vault/README.md` or a deployment/intervention page contains a permanent operator directive, treat it as higher-priority operational context for this deployment. Example currently recorded in the vault: `jd_client_sv2` must not be deployed on this VPS, and its absence is expected rather than a fault. Always re-read the vault to confirm current directives before discussing role topology.
 
 ### 🧠 Quartz 4 Web Publishing 🖥️
 
@@ -108,7 +108,7 @@ If `$HOME/wiki/README.md` or a deployment/intervention page contains a permanent
 
 The vault is sv2pi's **long-term brain** 🧠 — a living, evolving knowledge-base that persists across agent sessions and serves both the agent and human operators. **Quartz 4** publishes this brain as a web-browsable, hyperlinked vault so humans can explore the full operational picture with their own eyes.
 
-Quartz 4 is an open-source static site generator for Obsidian-flavored markdown vaults. It converts `$HOME/wiki/` into a navigable website with backlinks, graph view, full-text search, and dark mode.
+Quartz 4 is an open-source static site generator for Obsidian-flavored markdown vaults. It converts `$HOME/vault/` into a navigable website with backlinks, graph view, full-text search, and dark mode.
 
 **Repair, don't replace:** If the Quartz directory (`~/quartz/`) is missing or broken, RESTORE it by cloning and reinstalling (`git clone` + `npm ci`). Never substitute a different server (Python, Caddy raw serving, nginx directory listing, etc.). The ONLY valid output is a Quartz-generated HTML static site served bound to the WireGuard IP on port 4028.
 
@@ -125,9 +125,9 @@ When a user says "serve vault," "publish vault," or "show the brain," they mean 
 
 Before deciding how to serve, read these files in order to determine if Quartz/Obsidian Publish is expected:
 
-1. `$HOME/wiki/README.md` — top-level directives; may specify "quartz4 self-hosted obsidian publish-compatible server" and the target URL
-2. `$HOME/wiki/.wiki/config.json` — extension config; may list target port/interface
-3. `$HOME/wiki/WIKI_SCHEMA.md` — vault layout schema; may reference Quartz
+1. `$HOME/vault/README.md` — top-level directives; may specify "quartz4 self-hosted obsidian publish-compatible server" and the target URL
+2. `$HOME/vault/.wiki/config.json` — extension config; may list target port/interface
+3. `$HOME/vault/WIKI_SCHEMA.md` — vault layout schema; may reference Quartz
 
 If any of these reference Quartz, Obsidian Publish, or port 4028 → **build and serve with Quartz**, never serve the raw vault.
 
@@ -209,7 +209,7 @@ Update `baseUrl` dynamically from the detected WireGuard IP. Update `ignorePatte
 Quartz requires a root `index.md` as the homepage. If missing, create one:
 
 ```bash
-cat > $HOME/wiki/index.md <<'EOF'
+cat > $HOME/vault/index.md <<'EOF'
 ---
 title: 🤖 sv2bot ⛏️  deployment vault 🧠
 ---
@@ -254,10 +254,10 @@ EOF
 ```bash
 cd ~/quartz
 rm -rf public
-npx quartz build -d $HOME/wiki -o public
+npx quartz build -d $HOME/vault -o public
 ```
 
-This reads the vault at `$HOME/wiki`, applies Quartz transformations, and emits static HTML/JS/CSS to `~/quartz/public/`. The build takes ~2–10s depending on vault size.
+This reads the vault at `$HOME/vault`, applies Quartz transformations, and emits static HTML/JS/CSS to `~/quartz/public/`. The build takes ~2–10s depending on vault size.
 
 ##### Step Q5 — Serve with Caddy bound to WireGuard IP only
 
@@ -339,7 +339,7 @@ case "${1:-}" in
     ;;
   "")
     cd ~/quartz
-    exec npx quartz build -d ~/wiki -o ~/quartz/public
+    exec npx quartz build -d ~/vault -o ~/quartz/public
     ;;
   *)
     echo "Usage: build-sv2bot-quartz [--check]" >&2
@@ -354,12 +354,12 @@ cat > ~/.config/systemd/user/sv2bot-quartz-build.path <<'EOF'
 Description=Watch sv2bot vault markdown files and rebuild Quartz site
 
 [Path]
-PathModified=%h/wiki
-PathModified=%h/wiki/deployment
-PathModified=%h/wiki/interventions
-PathModified=%h/wiki/incidents
-PathModified=%h/wiki/wiki
-PathModified=%h/wiki/meta
+PathModified=%h/vault
+PathModified=%h/vault/deployment
+PathModified=%h/vault/interventions
+PathModified=%h/vault/incidents
+PathModified=%h/vault/wiki
+PathModified=%h/vault/meta
 Unit=sv2bot-quartz-build.service
 
 [Install]
@@ -437,7 +437,7 @@ systemctl --user start sv2bot-quartz-build.service
 Or directly:
 
 ```bash
-cd ~/quartz && npx quartz build -d ~/wiki -o ~/quartz/public
+cd ~/quartz && npx quartz build -d ~/vault -o ~/quartz/public
 ```
 
 ##### Summary checklist 🧠✅
