@@ -18,192 +18,202 @@ env:
   PI_ARGS: "--provider openrouter --model deepseek/deepseek-chat"
 
 jobs:
-  # ── deploy Bitcoin Core, validate container + IPC socket ───────────
-  deploy:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: bitcoin-v31
-            btc_tag: "31.0"
-            prompt: "Load the sv2pi skill and deploy Bitcoin Core v31.0."
-          - name: bitcoin-v30
-            btc_tag: "30.2"
-            prompt: "Load the sv2pi skill and deploy Bitcoin Core v30.2."
+  # NOTE: the codeblocks commented out below for future reference
+  # human developer is taking time to manually write some refined pattern-seeding coverage
+  # agentic development is going to take over once human is done seeding
+  # agents will learn from the human-written coverage and re-iterate on the disabled
+  # tests to improve them with patterns established on the seeded coverage
+  # in case it's more appropriate to simply drop tests that are currently disabled,
+  # we shouldn't be afraid to do that either. our goal here is to get oneshot prompt CI properly bootstrapped.
+  # we're not aiming for 100% coverage (yet, we will eventually).
+  # 
+  
+  # # ── deploy Bitcoin Core, validate container + IPC socket ───────────
+  # deploy:
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       include:
+  #         - name: bitcoin-v31
+  #           btc_tag: "31.0"
+  #           prompt: "Load the sv2pi skill and deploy Bitcoin Core v31.0."
+  #         - name: bitcoin-v30
+  #           btc_tag: "30.2"
+  #           prompt: "Load the sv2pi skill and deploy Bitcoin Core v30.2."
 
-    name: deploy-${{ matrix.name }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+  #   name: deploy-${{ matrix.name }}
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 15
 
-    steps:
-      - uses: actions/checkout@v4
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: '22'
 
-      - name: Install Pi
-        run: npm install -g @mariozechner/pi-coding-agent
+  #     - name: Install Pi
+  #       run: npm install -g @mariozechner/pi-coding-agent
 
-      - name: Install sv2pi skill
-        run: |
-          mkdir -p ~/.pi/agent/skills
-          cp -r skills/sv2pi ~/.pi/agent/skills/
+  #     - name: Install sv2pi skill
+  #       run: |
+  #         mkdir -p ~/.pi/agent/skills
+  #         cp -r skills/sv2pi ~/.pi/agent/skills/
 
-      - name: Run oneshot
-        run: |
-          pi $PI_ARGS -p "${{ matrix.prompt }}" 2>&1 | tee /tmp/pi-output.txt
+  #     - name: Run oneshot
+  #       run: |
+  #         pi $PI_ARGS -p "${{ matrix.prompt }}" 2>&1 | tee /tmp/pi-output.txt
 
-      - name: Validate — no confusion loops
-        run: |
-          if grep -q 'Error parsing command line arguments: Invalid parameter' /tmp/pi-output.txt 2>/dev/null; then
-            echo "FAIL: agent passed invalid args to bitcoin container"
-            exit 1
-          fi
-          if grep -q 'permission denied while trying to connect to the docker API' /tmp/pi-output.txt 2>/dev/null; then
-            echo "FAIL: Docker permission issue — agent should handle this"
-            exit 1
-          fi
-          echo "PASS: no known confusion patterns"
+  #     - name: Validate — no confusion loops
+  #       run: |
+  #         if grep -q 'Error parsing command line arguments: Invalid parameter' /tmp/pi-output.txt 2>/dev/null; then
+  #           echo "FAIL: agent passed invalid args to bitcoin container"
+  #           exit 1
+  #         fi
+  #         if grep -q 'permission denied while trying to connect to the docker API' /tmp/pi-output.txt 2>/dev/null; then
+  #           echo "FAIL: Docker permission issue — agent should handle this"
+  #           exit 1
+  #         fi
+  #         echo "PASS: no known confusion patterns"
 
-      - name: Validate — container and IPC socket
-        run: |
-          docker ps --filter name=bitcoin_core
-          sudo test -S "$HOME/.sv2pi/bitcoin/data/node.sock" \
-            && echo "PASS: IPC socket exists" \
-            || { echo "FAIL: IPC socket missing"; exit 1; }
+  #     - name: Validate — container and IPC socket
+  #       run: |
+  #         docker ps --filter name=bitcoin_core
+  #         sudo test -S "$HOME/.sv2pi/bitcoin/data/node.sock" \
+  #           && echo "PASS: IPC socket exists" \
+  #           || { echo "FAIL: IPC socket missing"; exit 1; }
 
-      - name: Validate — IPC socket matches expected path
-        run: |
-          echo "IPC path: $HOME/.sv2pi/bitcoin/data/node.sock"
+  #     - name: Validate — IPC socket matches expected path
+  #       run: |
+  #         echo "IPC path: $HOME/.sv2pi/bitcoin/data/node.sock"
 
-  # ── pool + bitcoin core: latest versions with defaults ───────────
-  pool-btc-latest:
-    name: pool-bitcoin-core-latest
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+  # # ── pool + bitcoin core: latest versions with defaults ───────────
+  # pool-btc-latest:
+  #   name: pool-bitcoin-core-latest
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 15
 
-    steps:
-      - uses: actions/checkout@v4
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: '22'
 
-      - name: Install Pi
-        run: npm install -g @mariozechner/pi-coding-agent
+  #     - name: Install Pi
+  #       run: npm install -g @mariozechner/pi-coding-agent
 
-      - name: Install sv2pi skill
-        run: |
-          mkdir -p ~/.pi/agent/skills
-          cp -r skills/sv2pi ~/.pi/agent/skills/
+  #     - name: Install sv2pi skill
+  #       run: |
+  #         mkdir -p ~/.pi/agent/skills
+  #         cp -r skills/sv2pi ~/.pi/agent/skills/
 
-      - name: Run oneshot — deploy latest BTC + Pool with defaults
-        run: |
-          pi $PI_ARGS -p "Load the sv2pi skill. Deploy the latest compatible \
-            Bitcoin Core and Pool using the default configuration values \
-            from the Docker config template." 2>&1 | tee /tmp/pi-output.txt
+  #     - name: Run oneshot — deploy latest BTC + Pool with defaults
+  #       run: |
+  #         pi $PI_ARGS -p "Load the sv2pi skill. Deploy the latest compatible \
+  #           Bitcoin Core and Pool using the default configuration values \
+  #           from the Docker config template." 2>&1 | tee /tmp/pi-output.txt
 
-      - name: Validate — both containers running
-        run: |
-          echo "--- container status ---"
-          docker ps --filter name=bitcoin_core --filter name=pool_sv2 \
-            --format '{{.Names}} {{.Status}}'
-          if docker ps --filter name=bitcoin_core --format '{{.Names}}' | grep -q bitcoin_core && \
-             docker ps --filter name=pool_sv2 --format '{{.Names}}' | grep -q pool_sv2; then
-            echo "PASS: both containers running"
-          else
-            echo "FAIL: one or both containers not running"
-            exit 1
-          fi
+  #     - name: Validate — both containers running
+  #       run: |
+  #         echo "--- container status ---"
+  #         docker ps --filter name=bitcoin_core --filter name=pool_sv2 \
+  #           --format '{{.Names}} {{.Status}}'
+  #         if docker ps --filter name=bitcoin_core --format '{{.Names}}' | grep -q bitcoin_core && \
+  #            docker ps --filter name=pool_sv2 --format '{{.Names}}' | grep -q pool_sv2; then
+  #           echo "PASS: both containers running"
+  #         else
+  #           echo "FAIL: one or both containers not running"
+  #           exit 1
+  #         fi
 
-      - name: Validate — pool health check
-        run: |
-          for i in $(seq 1 10); do
-            curl -sf http://localhost:9090/api/v1/health && echo "PASS: pool health OK" && exit 0
-            sleep 5
-          done
-          echo "FAIL: pool health check failed after 50s"
-          docker logs pool_sv2 --tail 30
-          exit 1
+  #     - name: Validate — pool health check
+  #       run: |
+  #         for i in $(seq 1 10); do
+  #           curl -sf http://localhost:9090/api/v1/health && echo "PASS: pool health OK" && exit 0
+  #           sleep 5
+  #         done
+  #         echo "FAIL: pool health check failed after 50s"
+  #         docker logs pool_sv2 --tail 30
+  #         exit 1
 
-  # ── keypair generation: agent must produce base58 secp256k1 keys ──
-  keypair:
-    name: keypair-generate
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+  # # ── keypair generation: agent must produce base58 secp256k1 keys ──
+  # keypair:
+  #   name: keypair-generate
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 10
 
-    steps:
-      - uses: actions/checkout@v4
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: '22'
 
-      - name: Install Pi
-        run: npm install -g @mariozechner/pi-coding-agent
+  #     - name: Install Pi
+  #       run: npm install -g @mariozechner/pi-coding-agent
 
-      - name: Pre-pull Rust image for keygen speed
-        run: docker pull rust:1.75-slim
+  #     - name: Pre-pull Rust image for keygen speed
+  #       run: docker pull rust:1.75-slim
 
-      - name: Install sv2pi skill
-        run: |
-          mkdir -p ~/.pi/agent/skills
-          cp -r skills/sv2pi ~/.pi/agent/skills/
+  #     - name: Install sv2pi skill
+  #       run: |
+  #         mkdir -p ~/.pi/agent/skills
+  #         cp -r skills/sv2pi ~/.pi/agent/skills/
 
-      - name: Run oneshot — generate keypair
-        run: |
-          pi $PI_ARGS -p "Load the sv2pi skill. Give me a base58-encoded \
-            secp256k1 keypair suitable for SRI pool configuration." 2>&1 | tee /tmp/pi-output.txt
+  #     - name: Run oneshot — generate keypair
+  #       run: |
+  #         pi $PI_ARGS -p "Load the sv2pi skill. Give me a base58-encoded \
+  #           secp256k1 keypair suitable for SRI pool configuration." 2>&1 | tee /tmp/pi-output.txt
 
-      - name: Validate — output contains keypair
-        run: |
-          echo "--- agent response ---"
-          cat /tmp/pi-output.txt
-          echo "--- validation ---"
-          if grep -qE 'authority_(public|secret)_key' /tmp/pi-output.txt; then
-            echo "PASS: agent produced keypair"
-          else
-            echo "FAIL: no keypair found in agent response"
-            exit 1
-          fi
+  #     - name: Validate — output contains keypair
+  #       run: |
+  #         echo "--- agent response ---"
+  #         cat /tmp/pi-output.txt
+  #         echo "--- validation ---"
+  #         if grep -qE 'authority_(public|secret)_key' /tmp/pi-output.txt; then
+  #           echo "PASS: agent produced keypair"
+  #         else
+  #           echo "FAIL: no keypair found in agent response"
+  #           exit 1
+  #         fi
 
-  # ── knowledge check: no deployment, just verify agent reasoning ───
-  knowledge:
-    name: knowledge-compatibility
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+  # # ── knowledge check: no deployment, just verify agent reasoning ───
+  # knowledge:
+  #   name: knowledge-compatibility
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 5
 
-    steps:
-      - uses: actions/checkout@v4
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: '22'
 
-      - name: Install Pi
-        run: npm install -g @mariozechner/pi-coding-agent
+  #     - name: Install Pi
+  #       run: npm install -g @mariozechner/pi-coding-agent
 
-      - name: Install sv2pi skill
-        run: |
-          mkdir -p ~/.pi/agent/skills
-          cp -r skills/sv2pi ~/.pi/agent/skills/
+  #     - name: Install sv2pi skill
+  #       run: |
+  #         mkdir -p ~/.pi/agent/skills
+  #         cp -r skills/sv2pi ~/.pi/agent/skills/
 
-      - name: Run oneshot — compatibility check
-        run: |
-          pi $PI_ARGS -p "Load the sv2pi skill. I deployed Bitcoin Core v31.0. \
-            Read the bitcoin-core-version.md compatibility matrix and tell me which \
-            SRI Docker tag is compatible. Answer with only the tag name, nothing else." 2>&1 | tee /tmp/pi-output.txt
+  #     - name: Run oneshot — compatibility check
+  #       run: |
+  #         pi $PI_ARGS -p "Load the sv2pi skill. I deployed Bitcoin Core v31.0. \
+  #           Read the bitcoin-core-version.md compatibility matrix and tell me which \
+  #           SRI Docker tag is compatible. Answer with only the tag name, nothing else." 2>&1 | tee /tmp/pi-output.txt
 
-      - name: Validate — correct compatibility answer
-        run: |
-          echo "--- agent response ---"
-          cat /tmp/pi-output.txt
-          echo "--- validation ---"
-          if grep -qi 'main' /tmp/pi-output.txt && ! grep -qi 'v0.3' /tmp/pi-output.txt; then
-            echo "PASS: agent correctly identified main as the only compatible tag"
-          else
-            echo "FAIL: agent gave wrong or ambiguous compatibility answer"
-            echo "Expected: only 'main' should be listed. Should NOT mention v0.3.x."
-            exit 1
-          fi
+  #     - name: Validate — correct compatibility answer
+  #       run: |
+  #         echo "--- agent response ---"
+  #         cat /tmp/pi-output.txt
+  #         echo "--- validation ---"
+  #         if grep -qi 'main' /tmp/pi-output.txt && ! grep -qi 'v0.3' /tmp/pi-output.txt; then
+  #           echo "PASS: agent correctly identified main as the only compatible tag"
+  #         else
+  #           echo "FAIL: agent gave wrong or ambiguous compatibility answer"
+  #           echo "Expected: only 'main' should be listed. Should NOT mention v0.3.x."
+  #           exit 1
+  #         fi
