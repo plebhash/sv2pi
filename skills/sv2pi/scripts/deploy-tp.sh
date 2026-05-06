@@ -13,16 +13,10 @@ NC='\033[0m'
 err() { printf '%bERROR:%b %s\n' "${RED}" "${NC}" "$*" >&2; }
 ok()  { printf '%bOK:%b %s\n' "${GREEN}" "${NC}" "$*"; }
 
-# Check Docker access
+# Check Docker access — agent must not invoke sudo/newgrp/sg.
+# Docker group membership is the operator's responsibility.
 if ! docker ps >/dev/null 2>&1; then
-    if groups 2>/dev/null | grep -q docker || id -Gn 2>/dev/null | grep -q docker; then
-        err 'Docker is not accessible despite docker group membership. Try: newgrp docker'
-    else
-        err 'Docker is not accessible.'
-        echo ''
-        echo '  Fix: sudo usermod -aG docker $USER && newgrp docker'
-        echo ''
-    fi
+    err 'Docker is not accessible. Ensure your user is in the docker group and the daemon is running.'
     exit 1
 fi
 
@@ -33,9 +27,10 @@ if [ ! -d "$BITCOIN_DATA_DIR" ]; then
     exit 1
 fi
 
-# Verify IPC socket exists (retry with sudo for root-owned volumes)
+# Verify IPC socket exists.
+# Agent does not invoke sudo; if the socket is root-owned, the operator must fix permissions.
 IPC_SOCK="$BITCOIN_DATA_DIR/node.sock"
-if [ ! -S "$IPC_SOCK" ] && ! sudo test -S "$IPC_SOCK" 2>/dev/null; then
+if [ ! -S "$IPC_SOCK" ]; then
     err "Bitcoin IPC socket not found at: $IPC_SOCK"
     echo "  Verify Bitcoin Core is running with -ipcbind=unix"
     exit 1
@@ -61,7 +56,12 @@ echo ''
 
 # Ensure the shared datadir is writable by the container.
 # Bitcoin Core creates it root-owned; sv2-tp needs write access for its PID file and keys.
-sudo chmod 777 "$BITCOIN_DATA_DIR" 2>/dev/null || true
+# The operator must ensure $BITCOIN_DATA_DIR is group/world-writable before running this script.
+if [ ! -w "$BITCOIN_DATA_DIR" ]; then
+    err "Bitcoin data directory is not writable: $BITCOIN_DATA_DIR"
+    echo "  The operator must make this directory writable (e.g. chmod 777) before deploying sv2-tp."
+    exit 1
+fi
 
 printf 'Pulling image... '
 docker pull "stratumv2/sv2-tp:$TAG" >/dev/null 2>&1 && ok 'done' || err 'pull failed'
