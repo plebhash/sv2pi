@@ -85,6 +85,80 @@ See `{baseDir}/references/architecture.md` for full detail.
 
 ## Workflow
 
+The deployment workflow is **dependency-driven, not prescribed in a fixed order**. The agent must understand what the user wants to achieve and guide them accordingly. Different users have different goals — there is no single "correct" deployment path.
+
+### Dependency Graph
+
+Each SRI app has prerequisites. Some prerequisites can be satisfied in multiple ways. The agent uses this graph to determine what must be deployed for the user's desired outcome.
+
+```
+                    ┌──────────────┐
+                    │  Bitcoin     │
+                    │  Core        │  ← required by everything
+                    └──────┬───────┘
+                           │
+              ┌────────────┼────────────┐
+              │ IPC         │ IPC        │
+              ▼             ▼            │
+     ┌──────────────┐                    │
+     │  sv2_tp      │  ← optional       │
+     │  (standalone │    Template        │
+     │   TP)        │    Provider        │
+     └──────┬───────┘    alternative     │
+            │                            │
+            │ TCP (Template              │
+            │ Distribution)              │
+            │                            │
+     ┌──────┴────────────────────────────┴──┐
+     │                                       │
+     ▼                                       ▼
+┌──────────────┐                     ┌──────────────┐
+│  pool_sv2    │                     │ jd_client_sv2│
+│  (Pool+JDS)  │                     │ (JDC)        │
+│              │                     │              │
+│  Template    │                     │  Template    │
+│  Provider:   │                     │  Provider:   │
+│   • IPC      │                     │   • IPC      │
+│   • Sv2Tp    │                     │   • Sv2Tp    │
+│              │                     │              │
+│  JD support: │                     │  Upstream:   │
+│   • enabled  │                     │   • pool:3333│
+│   • disabled │                     │   • JDS:3334 │
+│              │                     │              │
+└──────┬───────┘                     └──────┬───────┘
+       │                                    │
+       │ (JD protocol)                      │ (SV2 Mining)
+       │                                    │
+       └────────────────────────────────────┤
+                                            ▼
+                                   ┌──────────────┐
+                                   │ translator   │
+                                   │ _sv2         │
+                                   │              │
+                                   │  Upstream:   │
+                                   │  • JDC:34265 │
+                                   │  • pool:3333 │
+                                   │  • remote    │
+                                   └──────────────┘
+```
+
+**Key relationships:**
+
+| App | Prerequisites | Alternatives |
+|---|---|---|
+| **sv2_tp** | Bitcoin Core (IPC) | — |
+| **pool_sv2** | Template Provider | IPC (direct to BTC Core) or Sv2Tp (TCP to sv2-tp) |
+| **jd_client_sv2** | Template Provider + Pool (JDS endpoint) | Template Provider: IPC or Sv2Tp. Pool: usually local but can be remote |
+| **translator_sv2** | Upstream SV2 Mining Server | JDC (34265), Pool directly (3333), or any remote SV2 server |
+
+**sv2-tp as a standalone service:** sv2-tp can be deployed independently — without any Pool or JDC — for Template-Provider-as-a-Service deployments where the TP operator provides templates to remote pools and JDCs.
+
+**Pool without JD support:** The Pool can be deployed with JD support disabled (omit `authority_public_key`/`authority_secret_key` and JDS port). This yields a simpler pool-only deployment where miners cannot declare custom templates.
+
+**Translator upstream flexibility:** The Translator Proxy can be pointed at any SV2 mining server — local JDC, local Pool, or a remote upstream. It is not coupled to any specific local deployment.
+
+---
+
 ### Step 1 — Select Deployment Tag
 
 Ask the user: **"Which SRI Docker Hub tag? (`main` or a version like `v0.3.5`)"**
@@ -175,7 +249,22 @@ The agent must know the required version before running `deploy-bitcoin.sh`:
 
 If using a tag not in the frozen references, clone `sv2-apps` and check `bitcoin-core-sv2/README.md` for the exact version requirement.
 
-### Step 4 — Deploy Bitcoin Core
+---
+
+### Deploying Applications
+
+The sections below describe how to deploy each application. **Deploy only what the user needs** — not every component is required. The agent must:
+
+1. Understand what the user wants to accomplish
+2. Check the dependency graph to determine prerequisites
+3. Deploy only the necessary components, in dependency order
+4. Adapt template provider configuration (IPC vs Sv2Tp) based on what's deployed
+
+---
+
+### Deploy Bitcoin Core
+
+*Required by: everything.*
 
 If the user explicitly says "deploy Bitcoin Core", run the deploy script. Do NOT run `check-bitcoin.sh` first — it's only for the "already running" case below. The user asked to deploy; deploy.
 
@@ -188,7 +277,7 @@ bash {baseDir}/scripts/deploy-bitcoin.sh $BTC_TAG
 export BITCOIN_IPC_PATH="$HOME/.sv2pi/bitcoin/data/node.sock"
 ```
 
-After running the script, export the IPC path and move immediately to Step 5. Do NOT probe the deployment (no curl health checks, no `ls -la node.sock`, no `bitcoin-cli`). The script succeeds = deployment succeeded. The host data dir is root-owned (Docker volumes), so `ls` from the host user will fail — this is normal and irrelevant; SRI containers run as root.
+After running the script, export the IPC path and proceed to the next deployment. Do NOT probe the deployment (no curl health checks, no `ls -la node.sock`, no `bitcoin-cli`). The script succeeds = deployment succeeded. The host data dir is root-owned (Docker volumes), so `ls` from the host user will fail — this is normal and irrelevant; SRI containers run as root.
 
 **After deployment:** look up the BTC Core → SRI mapping in `{baseDir}/references/sv2-apps/bitcoin-core-version.md`. When the user later picks an SRI tag, only suggest compatible ones. If the user requests an incompatible pair, refuse and show the valid mappings.
 
@@ -225,9 +314,18 @@ bash {baseDir}/scripts/check-bitcoin.sh
 export BITCOIN_IPC_PATH   # use the path it outputs
 ```
 
-### Step 5 — Deploy SV2 Template Provider (sv2-tp)
+---
 
-**sv2-tp is optional but recommended** for production deployments. It decouples the SRI apps from direct Bitcoin Core IPC by serving the Template Distribution Protocol over TCP. This provides better fault isolation — sv2-tp handles IPC reconnection so Pool and JDC don't need direct IPC socket access.
+### Deploy sv2-tp (SV2 Template Provider)
+
+*Requires: Bitcoin Core (IPC).*
+*Required by: None (optional — Pool and JDC can use direct IPC instead).*
+
+sv2-tp is an **optional** standalone Template Provider that bridges Bitcoin Core IPC to the Template Distribution Protocol over TCP. Use cases:
+
+- **Decoupled deployments:** Pool and JDC don't need direct IPC socket access — sv2-tp handles IPC reconnection
+- **TP-as-a-Service:** Run sv2-tp independently to serve templates to remote pools and JDCs
+- **Multi-tenant:** One sv2-tp instance can serve multiple downstream consumers (Pool, JDC, or both)
 
 **Compatibility check before deploying:** sv2-tp v1.1.0 requires Bitcoin Core v31.0+. If deploying against v30.2, use sv2-tp v1.0.6. Check `{baseDir}/references/sv2-apps/bitcoin-core-version.md` for the full matrix.
 
@@ -243,7 +341,7 @@ This:
 - Listens for Template Distribution Protocol connections on port 8442 (mainnet default)
 - Binds `0.0.0.0:8442` by default (access from other containers)
 
-**The script outputs the address for Pool/JDC configuration.** After deploying sv2-tp, Pool and JDC must use `Sv2Tp` instead of `BitcoinCoreIpc`:
+**If sv2-tp is deployed, Pool and JDC must use `Sv2Tp` instead of `BitcoinCoreIpc`:**
 
 ```toml
 # In pool-config.toml or jdc-config.toml:
@@ -253,7 +351,12 @@ address = "127.0.0.1:8442"
 
 Do NOT probe the deployment after the script succeeds.
 
-### Step 6 — Deploy Pool (with embedded JDS)
+---
+
+### Deploy Pool (with optional embedded JDS)
+
+*Requires: Template Provider (Bitcoin Core IPC or sv2-tp).*
+*Required by: JDC (if JD support enabled), Translator (if connecting directly to Pool).*
 
 **CRITICAL:** Never deploy to production with the default keypairs from the Docker config templates. The pool's `authority_public_key`/`authority_secret_key` and the JDC's keypair must be unique per deployment. Generate fresh keys:
 
@@ -267,6 +370,8 @@ This uses `key-utils` (the official SRI key generation crate) inside a Dockerize
 
 Generate **two** secp256k1 keypairs: one for the pool app, one for the JDC app. Copy the pool's `authority_public_key` into the JDC's `[[upstreams]].authority_pubkey`. The JDC's own authority keypair is separate and used for downstream Translator connections.
 
+**JD support is optional.** If the user does not need Job Declaration (miners declaring custom templates), omit the JDS port and authority keypair from the pool config. This yields a simpler pool-only deployment.
+
 If the user has already reviewed the config templates (Step 2) and agrees to use defaults, deploy directly:
 
 ```bash
@@ -279,16 +384,20 @@ If the user's request is vague (e.g. "deploy a pool"), walk them through each co
 |---|---|---|
 | `coinbase_reward_script` | `addr(...)` (SRI community wallet) | "What payout address? (default: SRI community wallet)" |
 | `listen_address` | `0.0.0.0:3333` | "Stratum port? (default 3333)" |
-| `JDS listen_address` | `0.0.0.0:3334` | "JDS port? (default 3334)" |
+| `JDS listen_address` | `0.0.0.0:3334` | "JDS port? (default 3334, or disable JD support)" |
 | `shares_per_minute` | `6.0` | "Target shares/minute? (default 6)" |
 | `pool_signature` | `SRI Mainnet Pool` | "Pool signature string?" |
 | Authority keypair | hardcoded example | Warn: "Replace with your own keypair for production" |
 
 Never ask about ports/values the user already specified. If the user says "use defaults", deploy immediately.
 
-After the script succeeds, move to Step 7. Do NOT probe the deployment.
+After the script succeeds, proceed to the next deployment. Do NOT probe the deployment.
 
-### Step 7 — Deploy JD Client
+---
+
+### Deploy JD Client (JDC)
+
+*Requires: Template Provider (Bitcoin Core IPC or sv2-tp) + Pool with JDS enabled.*
 
 ```bash
 bash {baseDir}/scripts/deploy-jd.sh $DEPLOY_TAG $BITCOIN_IPC_PATH
@@ -307,7 +416,11 @@ docker logs jd_client_sv2 --tail 20
 curl -s http://localhost:9091/api/v1/health
 ```
 
-### Step 8 — Deploy Translator Proxy
+---
+
+### Deploy Translator Proxy
+
+*Requires: Upstream SV2 mining server (JDC, Pool, or remote).*
 
 ```bash
 bash {baseDir}/scripts/deploy-translator.sh $DEPLOY_TAG
@@ -315,8 +428,13 @@ bash {baseDir}/scripts/deploy-translator.sh $DEPLOY_TAG
 
 This:
 - Creates `~/.sv2pi/translator/config/` and writes `tproxy-config.toml`
-- Upstream points to JDC on localhost:34265
+- Upstream points to JDC on localhost:34265 by default
 - Exposes port 34255 (SV1 downstream), 9092 (monitoring)
+
+**Upstream flexibility:** The Translator Proxy is not coupled to any specific local deployment. Point it at whatever SV2 mining server the user needs:
+- **Local JDC:** `localhost:34265` (default)
+- **Local Pool:** `localhost:3333`
+- **Remote upstream:** any reachable SV2 mining server address
 
 After deployment, verify:
 ```bash
@@ -325,38 +443,41 @@ curl -s http://localhost:9092/api/v1/health
 curl -s http://localhost:9092/api/v1/sv1/clients
 ```
 
-### Step 9 — Verify Full Deployment
+---
 
-Run a comprehensive health check across all roles:
+### Verify Deployment
+
+Run health checks only for the components the user deployed. Do not assume all roles are present.
 
 ```bash
-# All monitoring endpoints
+# Container status — filter only deployed components
+docker ps --filter "name=pool_sv2" --filter "name=jd_client_sv2" --filter "name=translator_sv2" --filter "name=sv2_tp" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+# Health endpoints for deployed monitoring ports
+# Pool: 9090, JDC: 9091, Translator: 9092
 for endpoint in 9090 9091 9092; do
   echo "--- Port $endpoint ---"
   curl -sf http://localhost:$endpoint/api/v1/health | python3 -m json.tool 2>/dev/null || echo "UNREACHABLE"
 done
 
-# Container status (including sv2-tp)
-docker ps --filter "name=pool_sv2" --filter "name=jd_client_sv2" --filter "name=translator_sv2" --filter "name=sv2_tp" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-
-# SV2 Template Provider status
+# sv2-tp status (if deployed)
 docker logs sv2_tp --tail 10
 ```
 
-### Step 10 — Build Stateful Representation
+### Build Stateful Representation
 
-Probe detailed monitoring endpoints and build a mental model:
+Probe detailed monitoring endpoints for deployed components and build a mental model:
 
 ```bash
-# Pool state
+# Pool state (if deployed)
 curl -s http://localhost:9090/api/v1/server/channels | python3 -m json.tool
 curl -s http://localhost:9090/api/v1/clients | python3 -m json.tool
 
-# JDC state
+# JDC state (if deployed)
 curl -s http://localhost:9091/api/v1/server/channels | python3 -m json.tool
 curl -s http://localhost:9091/api/v1/clients | python3 -m json.tool
 
-# Translator state (includes SV1 clients)
+# Translator state, including SV1 clients (if deployed)
 curl -s http://localhost:9092/api/v1/sv1/clients | python3 -m json.tool
 curl -s http://localhost:9092/api/v1/server/channels | python3 -m json.tool
 ```
