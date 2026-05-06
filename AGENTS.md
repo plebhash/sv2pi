@@ -47,13 +47,11 @@ git reset --hard origin/main
 git cherry-pick <commit1> <commit2> ...   # re-apply feature commits
 ```
 
-### Returning to main
+### Returning to main (via staging)
 
-```bash
-cd ../sv2pi              # back to the main worktree
-git fetch origin
-git merge "$FEATURE"     # or open a PR on GitHub
-```
+**CRITICAL: NEVER merge a feature branch directly into `main`.** Every feature must land in `staging` first for integration testing. Only `staging` is merged into `main`.
+
+See [Staging workflow](#staging-workflow) for the full flow.
 
 ### Cleaning up
 
@@ -65,6 +63,8 @@ git branch -d "$FEATURE"   # local
 ```
 
 ## Staging workflow
+
+**CRITICAL: `main` is protected — never merge feature branches directly into `main`.** All features go through `staging` first. `staging` is the integration testing ground; only `staging` gets merged into `main`. If a user asks you to merge a feature into `main`, push back and remind them of this rule.
 
 The `staging` worktree/branch is a persistent integration testing ground
 where features are assembled and live-tested before landing on `main`.
