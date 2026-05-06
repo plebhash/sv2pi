@@ -210,7 +210,9 @@ Once all three values are confirmed, inject the snapshot:
 bash {baseDir}/scripts/snapshot.sh <blocks_dir> <chainstate_dir> [prune]
 ```
 
-This stops the container, clears the existing (barely-started) blocks/chainstate from the data dir, copies the snapshot data in, writes `prune=N` to `bitcoin.conf` if prune was specified, and restarts the container. After injection, Bitcoin Core resumes from the snapshot's chain height — the container persists its own blocks/chainstate normally on subsequent restarts.
+The script auto-detects root-owned data dir files (created by Docker mounts) and self-elevates via `sudo -E` before any file operations. It also validates Docker accessibility upfront — no need for the agent to use `sg docker` or `sudo` manually. If the environment isn't ready, the script fails immediately with a clear fix message rather than mid-flight.
+
+After injection, Bitcoin Core resumes from the snapshot's chain height — the container persists its own blocks/chainstate normally on subsequent restarts.
 
 If the user declines, continue to Step 5 — the node will sync from scratch.
 
