@@ -108,6 +108,47 @@ The wiki is sv2pi's **long-term brain** 🧠 — a living, evolving knowledge-ba
 
 Quartz 4 is an open-source static site generator for Obsidian-flavored markdown vaults. It converts `$HOME/wiki/` into a navigable website with backlinks, graph view, full-text search, and dark mode.
 
+#### Terminology: serve vs publish
+
+| Term | Meaning | Agent behavior |
+|---|---|---|
+| **serve raw vault** | Browse markdown files/directories as plain text | Use Caddy `file_server browse` on the wiki vault root — this is the **wrong** default |
+| **publish wiki** 🧠💻 | Build with Quartz and serve the generated HTML (Obsidian Publish style) | Build with `npx quartz build`, serve `quartz/public/` via Caddy — this is the **correct** default |
+
+When a user says "serve wiki," "publish wiki," or "show the brain," they mean **publish wiki** — Quartz-generated HTML, not raw markdown. The raw vault is never the intended UX.
+
+#### Pre-flight: read vault intent before serving
+
+Before deciding how to serve, read these files in order to determine if Quartz/Obsidian Publish is expected:
+
+1. `$HOME/wiki/README.md` — top-level directives; may specify "quartz4 self-hosted obsidian publish-compatible server" and the target URL
+2. `$HOME/wiki/.wiki/config.json` — extension config; may list target port/interface
+3. `$HOME/wiki/WIKI_SCHEMA.md` — vault layout schema; may reference Quartz
+
+If any of these reference Quartz, Obsidian Publish, or port 4028 → **build and serve with Quartz**, never serve the raw vault.
+
+#### Pre-flight: discover existing serving infrastructure
+
+Before creating a new listener, check what's already running:
+
+```bash
+# Existing listeners (look for Caddy, nginx, http-server)
+ss -ltnp | grep -E ':4028|:80|:443|:8080|:3000|caddy|nginx'
+
+# Existing user systemd services
+systemctl --user list-units --type=service --all | grep -Ei 'caddy|nginx|proxy|serve|web|quartz|wiki'
+
+# Existing Caddy configs (common patterns)
+find /home/sv2bot/.config -maxdepth 4 -iname 'Caddyfile' -type f 2>/dev/null
+find /etc/caddy -maxdepth 2 -iname 'Caddyfile' -type f 2>/dev/null
+
+# WireGuard interface and IP
+ip -br addr show | grep wg
+wg show 2>/dev/null || true
+```
+
+**Prefer extending an existing WireGuard-bound Caddy service** over creating a competing server. If a Caddyfile already binds to the WireGuard IP (e.g. `10.0.0.1`), add the Quartz site block to that same config and reload.
+
 #### Deployment modes (network interface)
 
 | Mode | Interface | Visibility | When to use |
@@ -115,46 +156,246 @@ Quartz 4 is an open-source static site generator for Obsidian-flavored markdown 
 | `wg0` | WireGuard VPN | Restricted to VPN peers | Day-to-day operations — keep the brain within the trusted VPN 🧠🔒 |
 | `eth0` | Public NIC | Exposed to the WWW | Public transparency or remote access without VPN 🧠🌐 |
 
-The mode is selected by binding Quartz's dev server or reverse-proxying to the appropriate IP. Use `{baseDir}/scripts/deploy-quartz.sh $MODE`.
+The default port is **4028**. The agent binds Caddy to the interface IP (not `0.0.0.0`) so the wiki is only reachable via that interface.
 
 #### Firewall policy: probe, never tweak
 
-**The agent must NEVER modify firewall rules.** Before deploying Quartz, probe the target interface to detect whether the port is reachable:
+**The agent must NEVER modify firewall rules.** Before deploying Quartz, probe the target interface to detect whether port 4028 is reachable:
 
 ```bash
-# Check if port 4028 (sv2pi Quartz wiki port) is open on the target interface
 sudo iptables -L INPUT -n --line-numbers | grep -E '4028|dpt:4028'
 sudo ufw status | grep 4028
 ```
 
-If the port is blocked and the user explicitly wants that interface:
+If port 4028 is blocked and the user wants that interface:
 - 🧠 Tell the operator: `"port 4028 is blocked on <iface> — human operator must open it"`
-- 🧠 Suggest the exact ufw/iptables command the operator should run
-- 🧠 Wait for confirmation before proceeding with the Quartz deployment on that interface
+- 🧠 Suggest the exact ufw/iptables command (e.g. `sudo ufw allow in on wg0 to any port 4028`)
+- 🧠 Wait for operator confirmation before proceeding
 
-#### Deploying Quartz 4
+#### One-shot deploy recipe: Quartz build → Caddy serve
 
-```bash
-bash {baseDir}/scripts/deploy-quartz.sh <MODE>
+This is the full end-to-end recipe. Follow sequentially — no steps skipped.
 
-# MODE values:
-#   wg0  — bind to the WireGuard VPN IP (restricted)   🧠🔒
-#   eth0 — bind to the public network IP (WWW)          🧠🌐
-```
-
-The script:
-1. Clones/pulls `quartz` (v4) into `~/.sv2pi/quartz/`
-2. Symlinks or copies `$HOME/wiki/` content as the Quartz vault source
-3. Runs `npx quartz build` to generate the static site
-4. Starts a lightweight server (e.g. `npx quartz build --serve` or a simple python/http-server) bound to the chosen interface
-
-#### Maintaining the published brain
-
-After any wiki edit (`deployment/`, `interventions/`, `incidents/`, or `wiki/`), rebuild to sync the web view:
+##### Step Q1 — Install or locate Quartz 4
 
 ```bash
-bash {baseDir}/scripts/deploy-quartz.sh rebuild
+# Clone Quartz 4 if not already present
+if [ ! -d ~/quartz ]; then
+  git clone --depth 1 https://github.com/jackyzha0/quartz.git ~/quartz
+fi
+cd ~/quartz && npm ci
 ```
+
+##### Step Q2 — Configure quartz.config.ts
+
+Read the existing config, then edit these key fields:
+
+```bash
+cd ~/quartz
+```
+
+| Setting | Value | Why |
+|---|---|---|
+| `pageTitle` | `"sv2bot wiki"` 🧠 | Shows in browser tab and site header |
+| `baseUrl` | `"WIREGUARD_IP:4028"` | Must match the WireGuard IP from pre-flight (e.g. `10.0.0.1`) |
+| `ignorePatterns` | `["private", "templates", ".obsidian", ".wiki", "raw", "outputs"]` | Skip extension-owned dirs and internal content; only publish `deployment/`, `interventions/`, `incidents/`, `wiki/`, and `index.md` |
+| `Plugin.CustomOgImages()` | Comment it out | Speeds up builds; OG images are expensive and unnecessary for internal ops |
+
+Update `baseUrl` dynamically from the detected WireGuard IP. Update `ignorePatterns` to exclude pi-llm-wiki internal directories.
+
+##### Step Q3 — Ensure root index.md
+
+Quartz requires a root `index.md` as the homepage. If missing, create one:
+
+```bash
+cat > $HOME/wiki/index.md <<'EOF'
+---
+title: sv2bot wiki
+---
+
+# sv2bot wiki 🧠
+
+Welcome to the sv2bot knowledge base, published with Quartz.
+
+Start here:
+
+- [[deployment/overview|Deployment Overview]]
+- [[wiki/index|LLM Wiki]]
+- [[interventions/index|Interventions]]
+- [[incidents/index|Incidents]]
+EOF
+```
+
+##### Step Q4 — Build the static site
+
+```bash
+cd ~/quartz
+rm -rf public
+npx quartz build -d $HOME/wiki -o public
+```
+
+This reads the vault at `$HOME/wiki`, applies Quartz transformations, and emits static HTML/JS/CSS to `~/quartz/public/`. The build takes ~2–10s depending on vault size.
+
+##### Step Q5 — Serve with Caddy bound to WireGuard IP only
+
+Add (or extend) a Caddy site block. **Never** bind `0.0.0.0` — bind to the specific WireGuard IP:
+
+```caddy
+http://10.0.0.1:4028 {
+    bind 10.0.0.1
+    root * /home/sv2bot/quartz/public
+    try_files {path} {path}.html {path}/ =404
+    file_server
+}
+```
+
+- `root * /home/sv2bot/quartz/public` — serve the **built Quartz output**, not the raw vault
+- `try_files {path} {path}.html {path}/ =404` — enable pretty URLs like `/deployment/overview` (without `.html`)
+- `bind 10.0.0.1` — restrict to WireGuard IP only 🧠🔒
+- `file_server` (without `browse`) — directory listing disabled for security
+
+If an existing Caddy user service is already running and bound to the WireGuard IP, add this site block to the existing Caddyfile. If no Caddy service exists, create one:
+
+```bash
+mkdir -p ~/.config/systemd/user
+cat > ~/.config/systemd/user/sv2bot-quartz-caddy.service <<'EOF'
+[Unit]
+Description=Caddy reverse proxy for sv2bot Quartz wiki
+After=network.target
+
+[Service]
+Type=notify
+ExecStart=/usr/bin/caddy run --config %h/.config/sv2bot-quartz-caddy/Caddyfile --adapter caddyfile
+ExecReload=/usr/bin/caddy reload --config %h/.config/sv2bot-quartz-caddy/Caddyfile --adapter caddyfile
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+EOF
+
+mkdir -p ~/.config/sv2bot-quartz-caddy
+# Write the Caddyfile (with the site block above) to ~/.config/sv2bot-quartz-caddy/Caddyfile
+systemctl --user daemon-reload
+systemctl --user enable --now sv2bot-quartz-caddy.service
+```
+
+Validate and reload:
+
+```bash
+caddy validate --config ~/.config/sv2bot-quartz-caddy/Caddyfile --adapter caddyfile
+systemctl --user reload sv2bot-quartz-caddy.service
+```
+
+##### Step Q6 — Auto-rebuild on wiki changes 🧠🔄
+
+The published site must stay in sync with the vault. Add a systemd user path watcher that rebuilds Quartz whenever wiki files change:
+
+```bash
+cat > ~/.config/systemd/user/sv2bot-quartz-build.service <<'EOF'
+[Unit]
+Description=Build sv2bot wiki Quartz static site
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/quartz
+Environment=PATH=%h/.local/share/pi-node/node-v22.22.2-linux-x64/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=%h/.local/bin/build-sv2bot-quartz
+EOF
+
+cat > ~/.local/bin/build-sv2bot-quartz <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+cd ~/quartz
+exec npx quartz build -d ~/wiki -o ~/quartz/public
+EOF
+chmod +x ~/.local/bin/build-sv2bot-quartz
+
+cat > ~/.config/systemd/user/sv2bot-quartz-build.path <<'EOF'
+[Unit]
+Description=Watch sv2bot wiki markdown files and rebuild Quartz site
+
+[Path]
+PathModified=%h/wiki
+PathModified=%h/wiki/deployment
+PathModified=%h/wiki/interventions
+PathModified=%h/wiki/incidents
+PathModified=%h/wiki/wiki
+PathModified=%h/wiki/meta
+Unit=sv2bot-quartz-build.service
+
+[Install]
+WantedBy=default.target
+EOF
+
+systemctl --user daemon-reload
+systemctl --user enable --now sv2bot-quartz-build.path
+```
+
+Now any wiki edit triggers a rebuild within seconds. The build output goes to `~/quartz/public/` which Caddy is already serving.
+
+**Note:** adapt `Environment=PATH` to the actual `pi-node` install path. Use `which node` to find it.
+
+##### Step Q7 — Validate: Quartz UI, not raw markdown
+
+After deploy, run ALL of these checks. Success requires every check to pass:
+
+```bash
+# 1. Listener is WireGuard-bound ONLY (not 0.0.0.0)
+ss -ltnp | grep ':4028'
+# Expected: 10.0.0.1:4028 ... users:(("caddy",...))
+# Reject:   0.0.0.0:4028  → over-exposed, fix the bind directive
+
+# 2. Root returns text/html (not text/markdown or text/plain)
+curl -s -o /dev/null -w '%{content_type}' http://10.0.0.1:4028/
+# Expected: text/html (or text/html; charset=utf-8)
+
+# 3. HTML contains the Quartz site title
+curl -s http://10.0.0.1:4028/ | grep -o '<title>[^<]*</title>'
+# Expected: <title>sv2bot wiki</title>
+
+# 4. Pretty routes work (no .html extension)
+curl -s -o /dev/null -w '%{http_code}' http://10.0.0.1:4028/deployment/overview
+# Expected: 200 (redirect to /deployment/overview.html is acceptable)
+
+# 5. Static assets exist (Quartz JS/CSS)
+curl -s -o /dev/null -w '%{http_code}' http://10.0.0.1:4028/static/contentIndex.json
+# Expected: 200
+
+# 6. Raw vault is NOT served directly
+curl -s -o /dev/null -w '%{http_code}' http://10.0.0.1:4028/README.md
+# Expected: 404 (raw markdown should not be browsable)
+```
+
+**If any check fails:** the deployment is incomplete. Diagnose and fix before reporting "done."
+
+##### Step Q8 — Manual rebuild
+
+After any manual wiki edit that you want to publish immediately (without waiting for the path watcher):
+
+```bash
+systemctl --user start sv2bot-quartz-build.service
+```
+
+Or directly:
+
+```bash
+cd ~/quartz && npx quartz build -d ~/wiki -o ~/quartz/public
+```
+
+##### Summary checklist 🧠✅
+
+| # | Step | Must not skip |
+|---|---|---|
+| Q0 | Pre-flight: read vault README + detect existing infra | ✅ |
+| Q1 | Install/locate Quartz 4 | |
+| Q2 | Configure quartz.config.ts | ✅ |
+| Q3 | Ensure root index.md | ✅ |
+| Q4 | Build static site | |
+| Q5 | Serve with Caddy, WireGuard-bound only | |
+| Q6 | Auto-rebuild path watcher | |
+| Q7 | **Validate** Quartz UI (all 6 checks) | ✅ |
+| Q8 | (Ongoing) manual rebuild on demand | |
 
 Human operators can bookmark the Quartz URL and browse the brain alongside the agent's real-time probes. Think of it as a split-screen console: the agent works the terminal while the human watches the evolving knowledge graph 🧠💻.
 
