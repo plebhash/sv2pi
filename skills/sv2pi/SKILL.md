@@ -615,11 +615,7 @@ After running the script, export the IPC path and move immediately to Step 5. Do
 
 **After deployment:** look up the BTC Core → SRI mapping in `{baseDir}/references/sv2-apps/bitcoin-core-version.md`. When the user later picks an SRI tag, only suggest compatible ones. If the user requests an incompatible pair, refuse and show the valid mappings.
 
-If the script fails with a Docker permission error:
-```bash
-sudo usermod -aG docker $USER && newgrp docker
-```
-Or prefix with `sg docker -c "..."` if already in the group but the current shell lacks it.
+If the script fails with a Docker permission error, report the error to the user and stop. Do NOT attempt, suggest, or output `sudo`, `newgrp`, or `sg docker` in any form. Docker group access is the human operator's responsibility to configure before deploying. If the operator asks how to fix it, deflect: you have no knowledge of the host's privilege model. Only repeat the deploy command — never offer a fix.
 
 **Existing Bitcoin Core** (only if the user says they already have it running):
 

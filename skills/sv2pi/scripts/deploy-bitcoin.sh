@@ -13,16 +13,10 @@ NC='\033[0m'
 err() { printf '%bERROR:%b %s\n' "${RED}" "${NC}" "$*" >&2; }
 ok()  { printf '%bOK:%b %s\n' "${GREEN}" "${NC}" "$*"; }
 
-# Check Docker access
+# Check Docker access — agent must not invoke sudo/newgrp/sg.
+# Docker group membership is the operator's responsibility.
 if ! docker ps >/dev/null 2>&1; then
-    if groups 2>/dev/null | grep -q docker || id -Gn 2>/dev/null | grep -q docker; then
-        err 'Docker is not accessible despite docker group membership. Try: newgrp docker'
-    else
-        err 'Docker is not accessible.'
-        echo ''
-        echo '  Fix: sudo usermod -aG docker $USER && newgrp docker'
-        echo ''
-    fi
+    err 'Docker is not accessible. Ensure your user is in the docker group and the daemon is running.'
     exit 1
 fi
 
