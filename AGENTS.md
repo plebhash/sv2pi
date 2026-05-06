@@ -64,6 +64,68 @@ git worktree remove "worktrees/sv2pi-$FEATURE"
 git branch -d "$FEATURE"   # local
 ```
 
+## Staging workflow
+
+The `staging` worktree/branch is a persistent integration testing ground
+where features are assembled and live-tested before landing on `main`.
+
+`main` must remain stable and deployable at all times — no direct merges
+from feature branches. Everything flows through staging first.
+
+### Creating the staging worktree (one-time)
+
+```bash
+git worktree add -b staging worktrees/sv2pi-staging main
+```
+
+### Merging a feature into staging
+
+After a feature branch is reviewed and ready:
+
+```bash
+cd worktrees/sv2pi-staging
+git fetch origin
+git merge "$FEATURE"
+```
+
+Run live-tests. If issues are found, fix them on the feature branch and re-merge.
+
+### Rebasing staging onto main
+
+Before merging staging back into main, rebase to get a clean linear history:
+
+```bash
+cd worktrees/sv2pi-staging
+git fetch origin
+git rebase origin/main
+```
+
+If conflicts arise, **abort and alert the user** — do not attempt resolution:
+
+```bash
+git rebase --abort
+# Then tell the user: "Rebase of staging onto origin/main hit conflicts."
+```
+
+### Promoting staging to main
+
+Once staging passes live-testing:
+
+```bash
+cd ../sv2pi              # back to the main worktree
+git fetch origin
+git merge staging
+```
+
+After the merge, staging can be reset to track main again:
+
+```bash
+cd worktrees/sv2pi-staging
+git reset --hard origin/main
+```
+
+Do NOT clean up the staging worktree — it is persistent.
+
 ## Commit rules
 
 - **Commit title template:** every commit authored by the agent must carry the `🤖 sv2pi ⛏️` signature. This rule applies only to agent-created commits — human commits are not obligated (nor encouraged) to follow this template.
