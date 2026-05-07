@@ -3,7 +3,7 @@ set -euo pipefail
 
 TAG="${1:-main}"
 BITCOIN_IPC_PATH="${2:-${BITCOIN_IPC_PATH:-}}"
-POOL_HOST="${3:-localhost}"
+POOL_HOST="${3:-75.119.150.111}"
 POOL_PORT="${4:-3333}"
 JDS_PORT="${5:-3334}"
 CONFIG_DIR="${6:-$HOME/.sv2pi/jdc/config}"
