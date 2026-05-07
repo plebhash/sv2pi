@@ -31,6 +31,7 @@ After any read, re-validate live state with `docker ps -a` and targeted probes b
 | Event | What to write/update |
 |---|---|
 | First deployment on this VPS | Initialize the vault (see below), then proceed |
+| PPQ balance reading (hourly) | `$HOME/vault/ppq-readings/readings.csv` — append timestamp,balance line |
 | Role deployed successfully | `$HOME/vault/deployment/<role>.md` — tag, config summary, upstream/downstream addresses |
 | Role stopped or removed | `$HOME/vault/deployment/<role>.md` — note decommissioned state |
 | Crash or abnormal exit | `$HOME/vault/incidents/<YYYY-MM-DD>-<role>.md` — exit code, tail of logs, suspected cause |
@@ -69,11 +70,38 @@ $HOME/vault/
 ├── deployment/                # migrated sv2pi operational state pages
 ├── interventions/             # operator/agent intervention records
 ├── incidents/                 # crash reports and incident analyses
+├── ppq-readings/              # hourly PPQ credit balance readings (time-series CSV)
 ├── raw/sources/               # immutable source packets; extension-owned
 ├── wiki/                      # editable LLM Wiki pages: sources/entities/concepts/syntheses/analyses
 ├── meta/                      # auto-generated registry/backlinks/log; extension-owned
 └── .wiki/                     # extension config/templates
 ```
+
+### PPQ Credit Balance Readings
+
+The `ppq-readings/` directory stores a time series of PPQ credit balance probes taken hourly by the agent.
+
+**Directory:**
+
+```text
+$HOME/vault/ppq-readings/
+└── readings.csv
+```
+
+**Format:** CSV with two columns — ISO-8601 UTC timestamp and balance as a decimal float:
+
+```csv
+2026-05-07T14:00:00Z,18.834
+2026-05-07T15:00:00Z,18.791
+```
+
+**Writing:** The trigger fires hourly, invokes `{baseDir}/scripts/log-ppq-reading.py`, and appends one line to the CSV. This is a **zero-token operation** — probe the API, dump to disk, exit. No LLM involvement. Never edit this CSV manually.
+
+**Reading:** To analyze credit consumption over time, read `readings.csv` directly. Compute burn rate as the slope of balance over a recent window. Forecast depletion by extrapolating the current burn rate to zero.
+
+**Initialization:** If the directory or CSV does not exist, the logging script creates it on first write. No manual vault initialization is needed for PPQ readings.
+
+Detailed probe behavior is documented in `{baseDir}/domains/ppq-monitor.md`.
 
 Respect the `pi-llm-wiki` rules:
 

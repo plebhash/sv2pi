@@ -86,9 +86,36 @@ When the user asks for PPQ credit balance:
    - HTTP status if available,
    - sanitized error body if available.
 
+### Hourly Balance Probe
+
+The agent probes PPQ credit balance every hour and logs the reading to the vault. This is a **zero-token, fire-and-forget operation** — probe the API, dump the result to CSV, exit. No LLM reasoning, no summarization, no agent response generation. This builds a time series for analyzing credit consumption patterns and detecting impending depletion.
+
+**Scheduling:** Probe at the top of every hour. If precise scheduling is not feasible, probe at the next opportunity and record the actual timestamp.
+
+**Logging:** After each probe, append a line to the vault's PPQ readings CSV:
+
+```bash
+python3 {baseDir}/scripts/log-ppq-reading.py
+```
+
+This script runs the balance probe and appends to `$HOME/vault/ppq-readings/readings.csv`:
+
+```csv
+2026-05-07T14:00:00Z,18.834
+```
+
+Format: ISO-8601 UTC timestamp, balance as a decimal float. The script never prints the API key.
+
+**Analysis:** The accumulated CSV provides a complete credit consumption ledger. The agent or operator can:
+
+- Plot balance over time to visualize burn rate.
+- Forecast depletion date from recent consumption slope.
+- Correlate consumption spikes with specific tasks or model usage.
+
+The full vault tracking convention is documented in `{baseDir}/domains/vault.md`.
+
 ### Error Semantics
 
 - **HTTP 402** may indicate insufficient credit for model requests.
 - If model calls are failing and PPQ balance is low or zero, suggest topping up PPQ credits.
 - If `models.json` is missing or `providers.ppq.apiKey` is absent, report that PPQ is not configured locally.
-
