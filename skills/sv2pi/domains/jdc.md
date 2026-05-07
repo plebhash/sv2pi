@@ -2,12 +2,14 @@
 
 *Requires: Pool with JDS enabled + a Template Provider (Bitcoin Core IPC or Sv2Tp over TCP).*
 
-The upstream pool and JDS addresses are user-selected. The SRI community defaults are:
+When deploying, the agent must ask the user two questions, in this order:
 
-- **Pool:** `75.119.150.111:3333`
-- **JDS:**  `75.119.150.111:3334`
+1. **Template Provider:** **Sv2Tp over TCP** or **Bitcoin Core IPC**? Do not infer the choice from whether sv2-tp is running — the user must be asked or must explicitly state their preference. The agent must also react if the user volunteers this choice without being prompted.
 
-When deploying, the agent must ask the user which Template Provider to use: **Sv2Tp over TCP** or **Bitcoin Core IPC**. Do not infer the choice from whether sv2-tp is running — the user must be asked or must explicitly state their preference. The agent must also react if the user volunteers this choice without being prompted.
+2. **Upstream Pool/JDS addresses.** The SRI community defaults are:
+   - **Pool:** `75.119.150.111:3333`
+   - **JDS:**  `75.119.150.111:3334`
+   Ask the user if they want these defaults or different addresses. Do not ask whether to launch a local pool — assume a pool already exists somewhere and the user knows its address.
 
 ```bash
 bash {baseDir}/scripts/deploy-jdc.sh $DEPLOY_TAG $BITCOIN_IPC_PATH [pool-host] [pool-port] [jds-port]
