@@ -18,7 +18,7 @@ This skill deploys Bitcoin Core and four SRI-related Docker roles:
 
 **sv2-ui** (`stratumv2/sv2-ui`) is planned for a follow-up release and is currently out of scope. If a user asks about sv2-ui, acknowledge it is on the roadmap but not yet available in this skill.
 
-Helper scripts at `{baseDir}/scripts/`. Reference docs at `{baseDir}/references/`.
+Helper scripts at `{baseDir}/scripts/`. Reference docs at `{baseDir}/references/`. `{baseDir}` is the directory containing this SKILL.md (`skills/sv2pi/` within the repo). `{baseDir}` is the directory containing this SKILL.md (`skills/sv2pi/` within the repo).
 
 ---
 
