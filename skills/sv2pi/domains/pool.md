@@ -1,7 +1,7 @@
 ### Deploy Pool (with optional embedded JDS)
 
 *Requires: Template Provider (Bitcoin Core IPC or sv2-tp).*
-*Required by: JDC (if JD support enabled), Translator (if connecting directly to Pool).*
+*Consumers: JDC (if JD support enabled), Translator, or any SV2 mining client. These downstream services may be local or remote — the Pool does not require co-located services.*
 
 **CRITICAL:** Never deploy to production with the default keypairs from the Docker config templates. The pool's `authority_public_key`/`authority_secret_key` and the JDC's keypair must be unique per deployment. Generate fresh keys:
 
@@ -36,7 +36,30 @@ If the user's request is vague (e.g. "deploy a pool"), walk them through each co
 
 Never ask about ports/values the user already specified. If the user says "use defaults", deploy immediately.
 
-After the script succeeds, proceed to the next deployment. Do NOT probe the deployment.
+After the script succeeds, smoke-test the Pool by deploying sv2-cpu-miner with 1 extended channel, 1 standard channel, and 10% CPU usage. Extended channels require JD support to be enabled on the Pool.
+
+```bash
+AUTH_PK=$(grep 'authority_public_key' ~/.sv2pi/pool/config/pool-config.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+bash {baseDir}/scripts/deploy-cpu-miner.sh 127.0.0.1:3333 "$AUTH_PK" 1 1 10
+```
+
+Compilation takes 2–5 minutes. Monitor with:
+
+```bash
+docker logs sv2-cpu-miner --tail 20
+```
+
+Once the miner is running, verify both channel types opened successfully from the Pool logs:
+
+```bash
+docker logs pool_sv2 --tail 100 | grep -E 'OpenExtendedMiningChannel.Success|OpenStandardMiningChannel.Success'
+```
+
+Both messages must appear. Stop and remove the miner container after validation:
+
+```bash
+docker stop sv2-cpu-miner && docker rm sv2-cpu-miner
+```
 
 
 
