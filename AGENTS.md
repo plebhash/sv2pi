@@ -14,44 +14,44 @@ Every new feature or contribution is developed in a dedicated git worktree with
 a matching feature branch. This keeps the main worktree clean and avoids stashing
 or dirty-state accidents.
 
-If the user does not specify a worktree, assume the main/root worktree (`./sv2pi`).
+If the user does not specify a worktree, assume the main/root worktree (`./sv2pi`). New feature branches should normally branch from `staging` unless the user explicitly says otherwise.
 
 ### Creating a feature worktree
 
 ```bash
-# From the repo root (main worktree, on main branch):
+# From the repo root (main worktree):
 FEATURE="oneshot-ci"
 
-git worktree add -b "$FEATURE" "worktrees/sv2pi-$FEATURE" main
+git worktree add -b "$FEATURE" "worktrees/sv2pi-$FEATURE" staging
 ```
 
 This creates `worktrees/sv2pi-$FEATURE/` as a new checkout on branch `$FEATURE`, branched
-from `main`. Work there and commit freely.
+from `staging`. Work there and commit freely.
 
 ### Rebasing before resuming work
 
-Always rebase the feature branch against `origin/main` before resuming work.
+Always rebase staging-targeted feature branches against `origin/staging` before resuming work.
 This prevents drift and catches upstream changes early:
 
 ```bash
 cd "worktrees/sv2pi-$FEATURE"
 git fetch origin
-git rebase origin/main
+git rebase origin/staging
 ```
 
 If conflicts arise, **abort and alert the user** — do not attempt resolution:
 
 ```bash
 git rebase --abort
-# Then tell the user: "Rebase of $FEATURE onto origin/main hit conflicts."
+# Then tell the user: "Rebase of $FEATURE onto origin/staging hit conflicts."
 ```
 
 If the rebase fails due to a divergent history (e.g. local amend vs pushed ancestor),
 use cherry-pick as a fallback:
 
 ```bash
-git log --oneline main..$FEATURE          # review feature-only commits
-git reset --hard origin/main
+git log --oneline staging..$FEATURE       # review feature-only commits
+git reset --hard origin/staging
 git cherry-pick <commit1> <commit2> ...   # re-apply feature commits
 ```
 
@@ -159,9 +159,10 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/) for the type
 
 When modifying the sv2pi skill under `skills/sv2pi/`:
 
-- `SKILL.md` — the main workflow document the agent follows
+- `SKILL.md` — root orchestrator and dispatch table
+- `domains/` — on-demand domain instructions loaded via `read {baseDir}/domains/...`
 - `scripts/` — deployment scripts called by the agent via `bash`
-- `references/` — reference documents the agent loads on demand
+- `references/` — passive reference documents and frozen templates
 - `references/sv2-apps/docker-templates/` — frozen config templates per SRI release (update when new SRI tags are released)
 
 After changing the skill, test by installing locally:
