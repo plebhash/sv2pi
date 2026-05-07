@@ -23,6 +23,25 @@ curl -s http://localhost:9092/api/v1/health
 curl -s http://localhost:9092/api/v1/sv1/clients
 ```
 
+## SV1 Load Generation with minerd
+
+The Translator Proxy terminates SV1 connections on port 34255. To generate SV1 traffic and verify end-to-end share flow through the SV2 pipeline, deploy minerd as an SV1 load generator. See `{baseDir}/domains/minerd.md` for full deployment instructions.
+
+```
+minerd ──(SV1 plain JSON-RPC)──► translator_sv2:34255
+                                      └──(SV2 Noise)──► JDC:34265 or Pool:3333
+```
+
+Together, translator + minerd enable:
+- **Handshake testing** — verify SV1→SV2 protocol translation works end-to-end
+- **Share-flow testing** — confirm shares traverse the full SV1→SV2→upstream path
+- **Sustained load** — simulate real SV1 miner traffic for pool hashrate monitoring
+
+After deploying minerd, cross-reference translator state:
+```bash
+curl -s http://localhost:9092/api/v1/sv1/clients | python3 -m json.tool
+journalctl --user -u minerd-1 -f
+```
 
 
 ## Crash Diagnostics

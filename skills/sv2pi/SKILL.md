@@ -1,14 +1,14 @@
 ---
 name: sv2pi
-description: Agentic deployment of the Stratum V2 Reference Implementation (SRI) for Bitcoin mainnet. Use when deploying or managing Docker-based SRI apps (pool_sv2, jd_client_sv2, translator_sv2, sv2_tp) alongside Bitcoin Core with IPC. Also use for deploying sv2-cpu-miner as a testing tool to verify Pool and JDC share flow, crash diagnostics, health monitoring, automated hashrate collection, and serving/publishing the sv2pi operations vault via Quartz 4 over WireGuard, and checking PPQ credit balance for the LLM provider. Scope is strictly production mainnet — not for development, testing, or devnet work.
+description: Agentic deployment of the Stratum V2 Reference Implementation (SRI) for Bitcoin mainnet. Use when deploying or managing Docker-based SRI apps (pool_sv2, jd_client_sv2, translator_sv2, sv2_tp) alongside Bitcoin Core with IPC. Also use for deploying sv2-cpu-miner as a testing tool to verify Pool and JDC share flow, deploying minerd for SV1 load generation through the Translator Proxy, crash diagnostics, health monitoring, automated hashrate collection, and serving/publishing the sv2pi operations vault via Quartz 4 over WireGuard, and checking PPQ credit balance for the LLM provider. Scope is strictly production mainnet — not for development, testing, or devnet work.
 ---
 
 # sv2pi — SRI Agentic Deployment
 
 Agentic deployment skill for the [Stratum V2 Reference Implementation](https://github.com/stratum-mining) on Bitcoin mainnet.
 
-This skill deploys Bitcoin Core, four SRI-related Docker roles, and one testing tool:
-| Role | Docker Image |
+This skill deploys Bitcoin Core, four SRI-related Docker roles, and two testing tools:
+| Role | Source |
 |---|---|
 | Bitcoin Core | `bitcoin/bitcoin:latest` |
 | Sv2 Template Provider | `stratumv2/sv2-tp` |
@@ -16,6 +16,7 @@ This skill deploys Bitcoin Core, four SRI-related Docker roles, and one testing 
 | Job Declarator Client (JDC) | `stratumv2/jd_client_sv2` |
 | Translator Proxy (SV1→SV2 bridge) | `stratumv2/translator_sv2` |
 | Sv2 CPU Miner (testing) | `rust:latest` (clones `plebhash/sv2-cpu-miner`) |
+| minerd SV1 CPU Miner (testing) | fetched tarball (cpuminer v2.5.1) |
 
 **sv2-ui** (`stratumv2/sv2-ui`) is planned for a follow-up release and is currently out of scope. If a user asks about sv2-ui, acknowledge it is on the roadmap but not yet available in this skill.
 
@@ -53,6 +54,7 @@ Use all four sources together. The vault gives durable cross-session context and
 | Deploy or diagnose JDC | `read {baseDir}/domains/jdc.md` |
 | Deploy or diagnose Translator Proxy | `read {baseDir}/domains/translator.md` |
 | Deploy or diagnose Sv2 CPU Miner | `read {baseDir}/domains/sv2-cpu-miner.md` |
+| Deploy or diagnose minerd SV1 load | `read {baseDir}/domains/minerd.md` |
 | Health diagnosis, crash investigation, topology questions, persistent memory, or explicit vault queries | `read {baseDir}/domains/vault.md` |
 | Serve, publish, show, expose, or repair the vault web UI | `read {baseDir}/domains/quartz.md` |
 | Check PPQ credit balance or model-credit failures | `read {baseDir}/domains/ppq-monitor.md` |
@@ -305,6 +307,7 @@ Then update `authority_public_key` and `authority_secret_key` in each app's conf
 - `{baseDir}/domains/jdc.md` — Job Declarator Client deployment and diagnostics
 - `{baseDir}/domains/translator.md` — Translator Proxy deployment, upstream flexibility, diagnostics
 - `{baseDir}/domains/sv2-cpu-miner.md` — Sv2 CPU Miner testing workflow, verification, diagnostics
+- `{baseDir}/domains/minerd.md` — minerd SV1 CPU Miner testing workflow, verification, diagnostics
 - `{baseDir}/domains/vault.md` — persistent operations vault, read-before-act workflow, wiki tooling
 - `{baseDir}/domains/quartz.md` — Quartz 4 publishing workflow for the vault web UI
 - `{baseDir}/domains/ppq-monitor.md` — PPQ credit balance checks and secret handling
@@ -312,6 +315,7 @@ Then update `authority_public_key` and `authority_secret_key` in each app's conf
 
 ### Static references (bundled with the skill)
 - `{baseDir}/references/architecture.md` — SRI app architecture and connection flow
+- `{baseDir}/references/sv1-overview.md` — SV1 mining protocol overview
 - `{baseDir}/references/sv2-spec-overview.md` — SV2 protocol roles and sub-protocols
 - `{baseDir}/references/sv2-apps/monitoring-api.md` — HTTP monitoring API reference for each app
 - `{baseDir}/references/sv2-apps/config-reference.md` — every config parameter with SV2-spec context and production guidance
@@ -345,10 +349,13 @@ The sv2-tp frozen directory contains:
 - `{baseDir}/scripts/deploy-bitcoin.sh` — deploy Bitcoin Core with IPC enabled
 - `{baseDir}/scripts/deploy-cpu-miner.sh` — deploy Sv2 CPU Miner for share-flow testing
 - `{baseDir}/scripts/deploy-jdc.sh` — deploy Job Declarator Client
+- `{baseDir}/scripts/deploy-minerd-sustained.sh` — deploy minerd sustained SV1 load as systemd services
 - `{baseDir}/scripts/deploy-pool.sh` — deploy Pool with optional embedded JDS
 - `{baseDir}/scripts/deploy-tp.sh` — deploy sv2-tp
 - `{baseDir}/scripts/deploy-translator.sh` — deploy Translator Proxy
+- `{baseDir}/scripts/fetch-minerd.sh` — download cpuminer v2.5.1 binary for host platform
 - `{baseDir}/scripts/generate-keypair.sh` — generate production keypairs via SRI key utilities
 - `{baseDir}/scripts/plot-pool-hashrate.py` — render pool hashrate charts
 - `{baseDir}/scripts/pool-monitor.sh` — automated pool hashrate monitoring script
+- `{baseDir}/scripts/run-minerd-adhoc.sh` — run minerd adhoc (handshake or oneshot) tests
 - `{baseDir}/scripts/snapshot.sh` — inject Bitcoin Core snapshot blocks/chainstate
