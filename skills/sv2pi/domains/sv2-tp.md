@@ -1,7 +1,7 @@
 ### Deploy sv2-tp (SV2 Template Provider)
 
 *Requires: Bitcoin Core (IPC).*
-*Required by: None (optional — Pool and JDC can use direct IPC instead).*
+*Required by: Pool and JDC (when using Sv2 TDP over TCP). Direct IPC remains an alternative — sv2-tp is one of many possible TDP-compliant template providers.*
 
 sv2-tp is an **optional** standalone Template Provider that bridges Bitcoin Core IPC to the Template Distribution Protocol over TCP. Use cases:
 

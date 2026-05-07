@@ -1,6 +1,6 @@
 ### Deploy Bitcoin Core
 
-*Required by: everything.*
+*Required by: sv2-tp (when used as IPC bridge). Pool and JDC may connect directly via IPC as an alternative to Sv2 TDP over TCP.*
 
 If the user explicitly says "deploy Bitcoin Core", run the deploy script. Do NOT run `check-bitcoin.sh` first — it's only for the "already running" case below. The user asked to deploy; deploy.
 
