@@ -145,11 +145,9 @@ Do NOT clean up the staging worktree — it is persistent.
 🤖 sv2pi ⛏️ refactor: restructure references/ directory layout
 ```
 
-- **NEVER sign commits.** Do not use `-S`, `-s`, `--gpg-sign`, or any commit signing mechanism. Commits must remain unsigned.
+- **Sign commits when possible.** Use `-S` or `--gpg-sign`. If signing fails (e.g. hardware key unavailable, passphrase prompt), alert the user for human intervention rather than retrying indefinitely. Ask if they want to sign, or proceed without signing.
 
 - **NEVER push to GitHub.** Do not run `git push` or any equivalent. The user handles all remote operations.
-
-- **Sign commits when possible.** Use `-S` or `--gpg-sign`. If signing fails (e.g. hardware key unavailable, passphrase prompt), alert the user for human intervention rather than retrying indefinitely.
 
 ## Conventional commits
 
