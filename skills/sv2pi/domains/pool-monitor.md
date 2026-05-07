@@ -23,13 +23,13 @@ $VAULT/pool-monitor/
 └── plots/
     └── pool-hashrate.png            # latest chart (overwritten each run)
 
-$VAULT/pool-hashrate.svg             # root-level chart alias for reliable Quartz embedding
+$VAULT/pool-hashrate.png             # root-level chart alias for reliable Quartz embedding
 ```
 
-The root-level `pool-hashrate.svg` alias is the recommended URL for embedding the chart in Quartz pages — Quartz's path rewriting causes ambiguous relative paths for markdown image embeds. Use a raw HTML `<img>` tag with an absolute path:
+The root-level `pool-hashrate.png` alias is the recommended URL for embedding the chart in Quartz pages — Quartz's path rewriting causes ambiguous relative paths for markdown image embeds. Use a raw HTML `<img>` tag with an absolute path:
 
 ```html
-<img src="/pool-hashrate.svg" alt="Pool hashrate" style="width: 100%; max-width: 1000px;" />
+<img src="/pool-hashrate.png" alt="Pool hashrate" style="width: 100%; max-width: 1000px;" />
 ```
 
 ### Dashboard contents
@@ -74,7 +74,7 @@ systemctl --user is-active sv2pi-pool-monitor.timer
 test -s ~/vault/pool-monitor/hashrate.jsonl
 test -s ~/vault/pool-monitor/index.md
 test -s ~/vault/pool-monitor/latest.md
-test -s ~/vault/pool-hashrate.svg
+test -s ~/vault/pool-hashrate.png
 
 curl -sf http://127.0.0.1:9090/api/v1/health
 ```
@@ -84,8 +84,8 @@ If published via Quartz, also verify:
 ```bash
 curl -sw '%{http_code} %{content_type}\n' -o /dev/null http://10.0.0.1:4028/pool-monitor/
 # Expected: 200 text/html
-curl -sw '%{http_code} %{content_type}\n' -o /dev/null http://10.0.0.1:4028/pool-hashrate.svg
-# Expected: 200 image/svg+xml
+curl -sw '%{http_code} %{content_type}\n' -o /dev/null http://10.0.0.1:4028/pool-hashrate.png
+# Expected: 200 image/png
 ```
 
 ### Diagnostics
@@ -96,7 +96,7 @@ Operational failures are logged in the systemd journal:
 journalctl --user -u sv2pi-pool-monitor.service -n 30
 ```
 
-Keep the dashboard clean — never surface Python import failures, stack traces, or implementation details in the operator-facing pages. The dashboard status field should be concise (e.g. `SVG updated`) rather than exposing internal error messages.
+Keep the dashboard clean — never surface Python import failures, stack traces, or implementation details in the operator-facing pages. The dashboard status field should be concise (e.g. `PNG updated`) rather than exposing internal error messages.
 
 The scripts consume zero AI tokens — pure data collection and rendering.
 

@@ -104,13 +104,15 @@ def main():
     last_time = times[-1]
     last_rate = rates[-1]
 
-    bg_color = "#0b1d3a"
+    outer_bg_color = "#000000"
+    plot_bg_color = "#0b1d3a"
     text_color = "#ffffff"
     date_color = "#8ecbff"
     rate_color = "#8dff9a"
 
-    fig, ax = plt.subplots(figsize=(10, 5), facecolor=bg_color)
-    ax.set_facecolor(bg_color)
+    fig, ax = plt.subplots(figsize=(10, 5), facecolor=outer_bg_color)
+    fig.patch.set_facecolor(outer_bg_color)
+    ax.set_facecolor(plot_bg_color)
 
     ax.plot(times, rates, marker="o", linewidth=1.5, color=text_color)
     ax.set_xlabel("Time (UTC)", color=text_color)
@@ -187,7 +189,13 @@ def main():
     plt.tight_layout()
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_path, dpi=150)
+    fig.savefig(
+        output_path,
+        dpi=150,
+        facecolor=fig.get_facecolor(),
+        edgecolor="none",
+        transparent=False,
+    )
     print(f"Saved plot to {output_path}")
 
 
