@@ -9,6 +9,7 @@ Each SRI release and sv2-tp release requires a specific minimum Bitcoin Core ver
 | SRI Tag | `bitcoin_core_sv2` Crate | Minimum Bitcoin Core | Docker Tag | Notes |
 |---|---|---|---|---|---|
 | `main` (rolling) | v0.2.0 | **v31.0** | `bitcoin/bitcoin:latest` or `31.0` | `bitcoin/bitcoin:latest` currently resolves to 31.0. Verify with `docker run --rm bitcoin/bitcoin:latest bitcoind --version`. |
+| v0.4.0 | v0.2.0 | **v31.0** | `bitcoin/bitcoin:31.0` | First tagged SRI release with Bitcoin Core v31.0 support. |
 | v0.3.5 | not bundled | **v30.2** | `bitcoin/bitcoin:30.2` | `BitcoinCoreIpc` config exists. |
 | v0.3.4 | not bundled | **v30.2** | `bitcoin/bitcoin:30.2` | Same as above. |
 | v0.3.3 | not bundled | **v30.2** | `bitcoin/bitcoin:30.2` | Same as above. |
@@ -31,7 +32,7 @@ This is the reverse lookup. After deploying Bitcoin Core, the agent must only su
 
 | Bitcoin Core Version | Compatible SRI Tags | Compatible sv2-tp Tags |
 |---|---|---|
-| **v31.0** (Docker `31.0`, `latest`) | `main` only | v1.1.0 |
+| **v31.0** (Docker `31.0`, `latest`) | `main`, `v0.4.0` | v1.1.0 |
 | **v30.2** (Docker `30.2`) | `v0.3.5`, `v0.3.4`, `v0.3.3`, `v0.3.2`, `v0.3.1`, `v0.3.0`, `v0.2.0`, `v0.1.0` | v1.0.6 |
 
 **Enforcement rule:** if the user asks to deploy an SRI or sv2-tp tag that is incompatible with the running Bitcoin Core version, stop and explain which tags are compatible. Never deploy a mismatched pair.

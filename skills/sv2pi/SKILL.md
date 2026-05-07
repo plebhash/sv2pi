@@ -321,7 +321,7 @@ Then update `authority_public_key` and `authority_secret_key` in each app's conf
 ### Frozen Docker config templates (bundled per release tag)
 These ship with the skill — no clone needed for known tags:
 - `{baseDir}/references/sv2-apps/docker-templates/v1.1.0/` — sv2-tp v1.1.0 frozen template
-- `{baseDir}/references/sv2-apps/docker-templates/v0.3.5/` through `{baseDir}/references/sv2-apps/docker-templates/v0.1.0/` — SRI release templates
+- `{baseDir}/references/sv2-apps/docker-templates/v0.4.0/` through `{baseDir}/references/sv2-apps/docker-templates/v0.1.0/` — SRI release templates
 
 There is **no frozen snapshot for `main`**. `main` is a rolling branch; its Docker config templates must be fetched live at runtime from `https://github.com/stratum-mining/sv2-apps`.
 

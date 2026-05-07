@@ -2,7 +2,7 @@
 
 ### Step 1 — Select Deployment Tag
 
-Ask the user: **"Which SRI Docker Hub tag? (`main` or a version like `v0.3.5`)"**
+Ask the user: **"Which SRI Docker Hub tag? (`main` or a version like `v0.4.0`)"**
 
 Store as `DEPLOY_TAG`. If the user doesn't specify, default to `main`.
 
@@ -20,6 +20,7 @@ Store as `DEPLOY_TAG`. If the user doesn't specify, default to `main`.
 │   ├── bitcoin-core-version.md          ← BTC Core version compatibility matrix
 │   └── docker-templates/
 │       ├── v1.1.0/                      ← frozen sv2-tp v1.1.0
+│       ├── v0.4.0/                      ← frozen at v0.4.0
 │       ├── v0.3.5/                      ← frozen at v0.3.5
 │       ├── v0.3.4/
 │       ├── v0.3.3/
@@ -32,7 +33,7 @@ Store as `DEPLOY_TAG`. If the user doesn't specify, default to `main`.
 └── sv2-spec-overview.md                 ← SV2 protocol overview
 ```
 
-**If the user selected a tagged release (e.g. `v0.3.5`):**
+**If the user selected a tagged release (e.g. `v0.4.0`):**
 
 Read the frozen Docker config templates directly:
 
@@ -85,6 +86,7 @@ cat {baseDir}/references/sv2-apps/bitcoin-core-version.md
 
 The agent must know the required version before running `deploy-bitcoin.sh`:
 - **`main`** → Bitcoin Core v31.0 (bitcoin_core_sv2 v0.2.0)
+- **v0.4.0** → Bitcoin Core v31.0 (first tagged release with bitcoin_core_sv2 v0.2.0)
 - **v0.3.5 through v0.1.0** → Bitcoin Core v30.2
 - **sv2-tp v1.1.0** → Bitcoin Core v31.0 (uses `stratumv2/sv2-tp:v1.1.0`)
 
