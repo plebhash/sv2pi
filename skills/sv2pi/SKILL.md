@@ -1,6 +1,6 @@
 ---
 name: sv2pi
-description: Agentic deployment of the Stratum V2 Reference Implementation (SRI) for Bitcoin mainnet. Use when deploying or managing Docker-based SRI apps (pool_sv2, jd_client_sv2, translator_sv2, sv2_tp) alongside Bitcoin Core with IPC. Also use for crash diagnostics, health monitoring, automated hashrate collection, and serving/publishing the sv2pi operations vault via Quartz 4 over WireGuard. Scope is strictly production mainnet — not for development, testing, or devnet work.
+description: Agentic deployment of the Stratum V2 Reference Implementation (SRI) for Bitcoin mainnet. Use when deploying or managing Docker-based SRI apps (pool_sv2, jd_client_sv2, translator_sv2, sv2_tp) alongside Bitcoin Core with IPC. Also use for crash diagnostics, health monitoring, automated hashrate collection, and serving/publishing the sv2pi operations vault via Quartz 4 over WireGuard, and checking PPQ credit balance for the LLM provider. Scope is strictly production mainnet — not for development, testing, or devnet work.
 ---
 
 # sv2pi — SRI Agentic Deployment
@@ -18,7 +18,7 @@ This skill deploys Bitcoin Core and four SRI-related Docker roles:
 
 **sv2-ui** (`stratumv2/sv2-ui`) is planned for a follow-up release and is currently out of scope. If a user asks about sv2-ui, acknowledge it is on the roadmap but not yet available in this skill.
 
-Helper scripts at `{baseDir}/scripts/`. Reference docs at `{baseDir}/references/`.
+Helper scripts at `{baseDir}/scripts/`. Reference docs at `{baseDir}/references/`. `{baseDir}` is the directory containing this SKILL.md (`skills/sv2pi/` within the repo).
 
 ---
 
@@ -983,6 +983,102 @@ diff ~/.sv2pi/pool/config/pool-config.toml ~/.cache/sv2pi/sv2-apps-$DEPLOY_TAG/c
 
 ---
 
+## PPQ Credit Balance Check
+
+The sv2bot agent uses PPQ (PayPerQ) as its LLM provider. Checking the PPQ credit balance is part of operational maintenance — low or zero balance can cause model calls to fail.
+
+Use this when the user asks about:
+- "PPQ credit" or "PayPerQ balance"
+- "credits remaining" or "LLM provider balance"
+- "why model calls are failing due to insufficient credit"
+
+### Security Rules
+
+1. **Never** print, echo, summarize, log, or persist the PPQ API key.
+2. **Never** paste the full contents of `models.json` into user-facing output.
+3. **Never** write the API key into the vault, skill docs, incident notes, or command transcripts.
+4. Use the placeholder `<PPQ_API_KEY>` when discussing the key.
+5. If showing commands, prefer commands that read the key locally and do not display it.
+6. Do not run shell tracing (`set -x`) around these commands.
+7. If an error occurs, report HTTP status and error body only after confirming it does not include secrets.
+
+### Config Location
+
+Pi stores model provider configuration at:
+
+```text
+/home/sv2bot/.pi/agent/models.json
+```
+
+The relevant provider entry is `providers.ppq` with expected fields:
+
+```json
+{
+  "apiKey": "<PPQ_API_KEY>",
+  "baseUrl": "https://api.ppq.ai/v1",
+  "type": "openai-completions"
+}
+```
+
+The PPQ credits endpoint lives outside `/v1`; the probe script strips `/v1` from `baseUrl` before calling the credit endpoint.
+
+### Balance Endpoint
+
+```http
+POST https://api.ppq.ai/credits/balance
+Authorization: Bearer <PPQ_API_KEY>
+Content-Type: application/json
+
+{}
+```
+
+A `credit_id` is not required — bearer authentication alone is sufficient.
+
+Expected successful response shape:
+
+```json
+{ "balance": 18.83440603170697 }
+```
+
+Treat any remembered balance as stale. Always probe live before answering.
+
+### Live Balance Probe
+
+```bash
+python3 {baseDir}/scripts/check-ppq-balance.py [/path/to/models.json]
+```
+
+Defaults to `/home/sv2bot/.pi/agent/models.json`. Accepts an optional config path argument.
+
+The script reads the API key locally from Pi config but never prints it. Output is always JSON:
+
+- `{"ok": true, "balance": 18.83, "raw": {...}}`
+- `{"ok": false, "error": "missing_config_key", ...}`
+- `{"ok": false, "error": "models_config_not_found", ...}`
+- `{"ok": false, "error": "http_error", "status": 402, "body": "..."}`
+
+### Agent Behavior
+
+When the user asks for PPQ credit balance:
+
+1. Run the live balance probe.
+2. Parse the returned JSON.
+3. If `ok: true`, answer with the current balance (e.g. "PPQ credit balance is currently $18.83.").
+4. Do not mention or expose the API key.
+5. If the endpoint fails, report:
+   - whether config was missing,
+   - whether the HTTP request failed,
+   - HTTP status if available,
+   - sanitized error body if available.
+
+### Error Semantics
+
+- **HTTP 402** may indicate insufficient credit for model requests.
+- If model calls are failing and PPQ balance is low or zero, suggest topping up PPQ credits.
+- If `models.json` is missing or `providers.ppq.apiKey` is absent, report that PPQ is not configured locally.
+
+---
+
 ## Keypair Management
 
 Deployment scripts use example/test keypairs by default. For production mainnet:
@@ -1134,3 +1230,6 @@ The sv2-tp frozen directory contains:
 ### Live sources (fetched at runtime)
 - `https://github.com/stratum-mining/sv2-apps` — for `main` branch Docker config templates, unknown future tags, and source code for log comparison
 - `https://github.com/stratum-mining/sv2-spec` — protocol specification
+
+### Operational scripts
+- `scripts/check-ppq-balance.py` — live PPQ credit balance probe (reads API key from Pi config, never prints it)
