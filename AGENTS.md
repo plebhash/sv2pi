@@ -22,10 +22,10 @@ If the user does not specify a worktree, assume the main/root worktree (`./sv2pi
 # From the repo root (main worktree):
 FEATURE="oneshot-ci"
 
-git worktree add -b "$FEATURE" "worktrees/sv2pi-$FEATURE" staging
+git worktree add -b "$FEATURE" "worktrees/$FEATURE" staging
 ```
 
-This creates `worktrees/sv2pi-$FEATURE/` as a new checkout on branch `$FEATURE`, branched
+This creates `worktrees/$FEATURE/` as a new checkout on branch `$FEATURE`, branched
 from `staging`. Work there and commit freely.
 
 ### Rebasing before resuming work
@@ -34,7 +34,7 @@ Always rebase staging-targeted feature branches against `origin/staging` before 
 This prevents drift and catches upstream changes early:
 
 ```bash
-cd "worktrees/sv2pi-$FEATURE"
+cd "worktrees/$FEATURE"
 git fetch origin
 git rebase origin/staging
 ```
@@ -66,7 +66,7 @@ See [Staging workflow](#staging-workflow) for the full flow.
 After the feature branch is merged (or abandoned):
 
 ```bash
-git worktree remove "worktrees/sv2pi-$FEATURE"
+git worktree remove "worktrees/$FEATURE"
 git branch -d "$FEATURE"   # local
 ```
 
