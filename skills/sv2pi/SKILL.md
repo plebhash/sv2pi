@@ -53,12 +53,12 @@ Use all four sources together. The vault gives durable cross-session context and
 | Deploy or diagnose JDC | `read {baseDir}/domains/jdc.md` |
 | Deploy or diagnose Translator Proxy | `read {baseDir}/domains/translator.md` |
 | Deploy or diagnose Sv2 CPU Miner | `read {baseDir}/domains/sv2-cpu-miner.md` |
-| Ask about deployment health, operator intent, persistent memory, or vault updates | `read {baseDir}/domains/vault.md` |
+| Health diagnosis, crash investigation, topology questions, persistent memory, or explicit vault queries | `read {baseDir}/domains/vault.md` |
 | Serve, publish, show, expose, or repair the vault web UI | `read {baseDir}/domains/quartz.md` |
 | Check PPQ credit balance or model-credit failures | `read {baseDir}/domains/ppq-monitor.md` |
 | Enable or diagnose automated pool hashrate monitoring | `read {baseDir}/domains/pool-monitor.md` |
 
-Before making deployment-health claims or operational recommendations, read the vault domain and then re-validate live state. Before role-specific crash diagnosis, read the relevant role domain.
+Before deployment actions, perform a quick vault check (read `$HOME/vault/README.md` for binding directives). For health diagnosis, crash investigation, or topology questions, read the vault domain and then re-validate live state. Before role-specific crash diagnosis, read the relevant role domain.
 
 ---
 
