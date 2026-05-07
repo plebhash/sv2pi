@@ -83,7 +83,7 @@ from feature branches. Everything flows through staging first.
 ### Creating the staging worktree (one-time)
 
 ```bash
-git worktree add -b staging worktrees/sv2pi-staging main
+git worktree add -b staging worktrees/staging main
 ```
 
 ### Merging a feature into staging
@@ -91,7 +91,7 @@ git worktree add -b staging worktrees/sv2pi-staging main
 After a feature branch is reviewed and ready:
 
 ```bash
-cd worktrees/sv2pi-staging
+cd worktrees/staging
 git fetch origin
 git merge "$FEATURE"
 ```
@@ -103,7 +103,7 @@ Run live-tests. If issues are found, fix them on the feature branch and re-merge
 Before merging staging back into main, rebase to get a clean linear history:
 
 ```bash
-cd worktrees/sv2pi-staging
+cd worktrees/staging
 git fetch origin
 git rebase origin/main
 ```
@@ -128,7 +128,7 @@ git merge staging
 After the merge, staging can be reset to track main again:
 
 ```bash
-cd worktrees/sv2pi-staging
+cd worktrees/staging
 git reset --hard origin/main
 ```
 
