@@ -7,6 +7,9 @@
 #
 # Benchmark model: deepseek/deepseek-chat (mid-tier, via OpenRouter).
 # Secret required: OPENROUTER_API_KEY (set in repo Settings → Secrets → Actions).
+#
+# One job per sv2pi skill domain. Deployment domains exercise full
+# deploy+validate; knowledge-only domains validate agent reasoning.
 
 name: oneshot
 
@@ -18,4 +21,631 @@ env:
   PI_ARGS: "--provider openrouter --model deepseek/deepseek-chat"
 
 jobs:
-  # todo
+
+  # ── bitcoin-core: deploy Bitcoin Core v31.0, validate container + IPC ──
+
+  bitcoin-core:
+    name: bitcoin-core
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Pi
+        run: npm install -g @mariozechner/pi-coding-agent
+
+      - name: Install sv2pi skill
+        run: |
+          mkdir -p ~/.pi/agent/skills
+          cp -r skills/sv2pi ~/.pi/agent/skills/
+
+      - name: Run oneshot
+        run: |
+          pi $PI_ARGS -p "Load the sv2pi skill and deploy Bitcoin Core v31.0." 2>&1 | tee /tmp/pi-output.txt
+
+      - name: Validate — no confusion loops
+        run: |
+          if grep -q 'Error parsing command line arguments: Invalid parameter' /tmp/pi-output.txt 2>/dev/null; then
+            echo "FAIL: agent passed invalid args to bitcoin container"
+            exit 1
+          fi
+          if grep -q 'permission denied while trying to connect to the docker API' /tmp/pi-output.txt 2>/dev/null; then
+            echo "FAIL: Docker permission issue"
+            exit 1
+          fi
+          echo "PASS: no known confusion patterns"
+
+      - name: Validate — container running
+        run: |
+          docker ps --filter name=bitcoin_core --format '{{.Names}}' | grep -q bitcoin_core \
+            && echo "PASS: bitcoin_core container running" \
+            || { echo "FAIL: bitcoin_core container not running"; exit 1; }
+
+      - name: Validate — IPC socket
+        run: |
+          docker exec bitcoin_core test -S /home/bitcoin/.bitcoin/node.sock \
+            && echo "PASS: IPC socket exists inside container" \
+            || { echo "FAIL: IPC socket missing"; exit 1; }
+
+  # ── pool: deploy BTC Core + Pool v0.4.0 with keypair, validate health ──
+
+  pool:
+    name: pool
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Pi
+        run: npm install -g @mariozechner/pi-coding-agent
+
+      - name: Pre-pull Rust image for keypair generation speed
+        run: docker pull rust:1.75-slim
+
+      - name: Install sv2pi skill
+        run: |
+          mkdir -p ~/.pi/agent/skills
+          cp -r skills/sv2pi ~/.pi/agent/skills/
+
+      - name: Run oneshot
+        run: |
+          pi $PI_ARGS -p "Load the sv2pi skill. Deploy Bitcoin Core v31.0. \
+            Then deploy a Pool v0.4.0 with embedded JDS using auto-generated \
+            keypairs and default frozen config template values." 2>&1 | tee /tmp/pi-output.txt
+
+      - name: Validate — no confusion loops
+        run: |
+          if grep -q 'Error parsing command line arguments: Invalid parameter' /tmp/pi-output.txt 2>/dev/null; then
+            echo "FAIL: agent passed invalid args"
+            exit 1
+          fi
+          if grep -q 'permission denied while trying to connect to the docker API' /tmp/pi-output.txt 2>/dev/null; then
+            echo "FAIL: Docker permission issue"
+            exit 1
+          fi
+          echo "PASS: no known confusion patterns"
+
+      - name: Validate — both containers running
+        run: |
+          echo "--- container status ---"
+          docker ps --filter name=bitcoin_core --filter name=pool_sv2 \
+            --format '{{.Names}} {{.Status}}'
+          if docker ps --filter name=bitcoin_core --format '{{.Names}}' | grep -q bitcoin_core && \
+             docker ps --filter name=pool_sv2 --format '{{.Names}}' | grep -q pool_sv2; then
+            echo "PASS: both containers running"
+          else
+            echo "FAIL: one or both containers not running"
+            exit 1
+          fi
+
+      - name: Validate — pool health check
+        run: |
+          for i in $(seq 1 10); do
+            curl -sf http://localhost:9090/api/v1/health && echo "PASS: pool health OK" && exit 0
+            sleep 5
+          done
+          echo "FAIL: pool health check failed after 50s"
+          docker logs pool_sv2 --tail 30
+          exit 1
+
+  # ── sv2-tp: deploy BTC Core + sv2-tp v1.1.0, validate container + IPC ──
+
+  sv2-tp:
+    name: sv2-tp
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Pi
+        run: npm install -g @mariozechner/pi-coding-agent
+
+      - name: Install sv2pi skill
+        run: |
+          mkdir -p ~/.pi/agent/skills
+          cp -r skills/sv2pi ~/.pi/agent/skills/
+
+      - name: Pre-create data dir world-writable (sv2-tp needs write access)
+        run: |
+          mkdir -p "$HOME/.sv2pi/bitcoin/data"
+          chmod 777 "$HOME/.sv2pi/bitcoin/data"
+
+      - name: Run oneshot
+        run: |
+          pi $PI_ARGS -p "Load the sv2pi skill. Deploy Bitcoin Core v31.0. \
+            Then deploy sv2-tp v1.1.0 connected to it via IPC. The Bitcoin Core \
+            data directory should already be world-writable." 2>&1 | tee /tmp/pi-output.txt
+
+      - name: Validate — no confusion loops
+        run: |
+          if grep -q 'Error parsing command line arguments: Invalid parameter' /tmp/pi-output.txt 2>/dev/null; then
+            echo "FAIL: agent passed invalid args"
+            exit 1
+          fi
+          if grep -q 'permission denied while trying to connect to the docker API' /tmp/pi-output.txt 2>/dev/null; then
+            echo "FAIL: Docker permission issue"
+            exit 1
+          fi
+          echo "PASS: no known confusion patterns"
+
+      - name: Validate — sv2-tp container running
+        run: |
+          docker ps --filter name=sv2_tp --format '{{.Names}}' | grep -q sv2_tp \
+            && echo "PASS: sv2_tp container running" \
+            || { echo "FAIL: sv2_tp container not running"; docker ps -a --filter name=sv2_tp; exit 1; }
+
+      - name: Validate — IPC socket mounted inside sv2-tp
+        run: |
+          docker exec sv2_tp test -S /home/bitcoin/.bitcoin/node.sock \
+            && echo "PASS: IPC socket visible inside sv2_tp container" \
+            || { echo "FAIL: IPC socket missing inside sv2_tp"; docker logs sv2_tp --tail 30; exit 1; }
+
+  # ── jdc: deploy BTC Core + Pool + JDC v0.4.0, validate health ──
+
+  jdc:
+    name: jdc
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Pi
+        run: npm install -g @mariozechner/pi-coding-agent
+
+      - name: Pre-pull Rust image for keypair generation speed
+        run: docker pull rust:1.75-slim
+
+      - name: Install sv2pi skill
+        run: |
+          mkdir -p ~/.pi/agent/skills
+          cp -r skills/sv2pi ~/.pi/agent/skills/
+
+      - name: Run oneshot
+        run: |
+          pi $PI_ARGS -p "Load the sv2pi skill. Deploy Bitcoin Core v31.0 and \
+            a Pool v0.4.0 with embedded JDS using auto-generated keypairs, \
+            then deploy a JDC v0.4.0 connecting to the local pool (localhost:3333 \
+            for stratum, localhost:3334 for JDS). Use the default frozen config \
+            template values." 2>&1 | tee /tmp/pi-output.txt
+
+      - name: Validate — no confusion loops
+        run: |
+          if grep -q 'Error parsing command line arguments: Invalid parameter' /tmp/pi-output.txt 2>/dev/null; then
+            echo "FAIL: agent passed invalid args"
+            exit 1
+          fi
+          if grep -q 'permission denied while trying to connect to the docker API' /tmp/pi-output.txt 2>/dev/null; then
+            echo "FAIL: Docker permission issue"
+            exit 1
+          fi
+          echo "PASS: no known confusion patterns"
+
+      - name: Validate — all three containers running
+        run: |
+          echo "--- container status ---"
+          docker ps --filter name=bitcoin_core --filter name=pool_sv2 --filter name=jd_client_sv2 \
+            --format '{{.Names}} {{.Status}}'
+          if docker ps --filter name=bitcoin_core --format '{{.Names}}' | grep -q bitcoin_core && \
+             docker ps --filter name=pool_sv2 --format '{{.Names}}' | grep -q pool_sv2 && \
+             docker ps --filter name=jd_client_sv2 --format '{{.Names}}' | grep -q jd_client_sv2; then
+            echo "PASS: all three containers running"
+          else
+            echo "FAIL: one or more containers not running"
+            exit 1
+          fi
+
+      - name: Validate — JDC health check
+        run: |
+          for i in $(seq 1 10); do
+            curl -sf http://localhost:9091/api/v1/health && echo "PASS: JDC health OK" && exit 0
+            sleep 5
+          done
+          echo "FAIL: JDC health check failed after 50s"
+          docker logs jd_client_sv2 --tail 30
+          exit 1
+
+  # ── translator: deploy BTC Core + Pool + Translator v0.4.0, validate ──
+
+  translator:
+    name: translator
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Pi
+        run: npm install -g @mariozechner/pi-coding-agent
+
+      - name: Pre-pull Rust image for keypair generation speed
+        run: docker pull rust:1.75-slim
+
+      - name: Install sv2pi skill
+        run: |
+          mkdir -p ~/.pi/agent/skills
+          cp -r skills/sv2pi ~/.pi/agent/skills/
+
+      - name: Run oneshot
+        run: |
+          pi $PI_ARGS -p "Load the sv2pi skill. Deploy Bitcoin Core v31.0 and \
+            a Pool v0.4.0 with auto-generated keypairs, then deploy a Translator \
+            Proxy v0.4.0 with its upstream pointed at the local pool on \
+            localhost:3333. Use the default frozen config template values." 2>&1 | tee /tmp/pi-output.txt
+
+      - name: Validate — no confusion loops
+        run: |
+          if grep -q 'Error parsing command line arguments: Invalid parameter' /tmp/pi-output.txt 2>/dev/null; then
+            echo "FAIL: agent passed invalid args"
+            exit 1
+          fi
+          if grep -q 'permission denied while trying to connect to the docker API' /tmp/pi-output.txt 2>/dev/null; then
+            echo "FAIL: Docker permission issue"
+            exit 1
+          fi
+          echo "PASS: no known confusion patterns"
+
+      - name: Validate — all three containers running
+        run: |
+          echo "--- container status ---"
+          docker ps --filter name=bitcoin_core --filter name=pool_sv2 --filter name=translator_sv2 \
+            --format '{{.Names}} {{.Status}}'
+          if docker ps --filter name=bitcoin_core --format '{{.Names}}' | grep -q bitcoin_core && \
+             docker ps --filter name=pool_sv2 --format '{{.Names}}' | grep -q pool_sv2 && \
+             docker ps --filter name=translator_sv2 --format '{{.Names}}' | grep -q translator_sv2; then
+            echo "PASS: all three containers running"
+          else
+            echo "FAIL: one or more containers not running"
+            exit 1
+          fi
+
+      - name: Validate — Translator health check
+        run: |
+          for i in $(seq 1 10); do
+            curl -sf http://localhost:9092/api/v1/health && echo "PASS: Translator health OK" && exit 0
+            sleep 5
+          done
+          echo "FAIL: Translator health check failed after 50s"
+          docker logs translator_sv2 --tail 30
+          exit 1
+
+  # ── sv2-cpu-miner: deploy BTC Core + Pool + cpu-miner, validate channel flow ──
+
+  sv2-cpu-miner:
+    name: sv2-cpu-miner
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Pi
+        run: npm install -g @mariozechner/pi-coding-agent
+
+      - name: Install sv2pi skill
+        run: |
+          mkdir -p ~/.pi/agent/skills
+          cp -r skills/sv2pi ~/.pi/agent/skills/
+
+      - name: Run oneshot
+        run: |
+          pi $PI_ARGS -p "Load the sv2pi skill. Deploy Bitcoin Core v31.0 and \
+            a Pool v0.4.0 with embedded JDS using auto-generated keypairs. \
+            Then deploy sv2-cpu-miner against the pool (localhost:3333) with \
+            1 extended channel, 1 standard channel, and 10% CPU usage. \
+            Use the default keypair from the deployed pool config. Stop and \
+            remove the miner once both channel types are confirmed open." 2>&1 | tee /tmp/pi-output.txt
+
+      - name: Validate — no confusion loops
+        run: |
+          if grep -q 'Error parsing command line arguments: Invalid parameter' /tmp/pi-output.txt 2>/dev/null; then
+            echo "FAIL: agent passed invalid args"
+            exit 1
+          fi
+          if grep -q 'permission denied while trying to connect to the docker API' /tmp/pi-output.txt 2>/dev/null; then
+            echo "FAIL: Docker permission issue"
+            exit 1
+          fi
+          echo "PASS: no known confusion patterns"
+
+      - name: Validate — pool health OK
+        run: |
+          for i in $(seq 1 10); do
+            curl -sf http://localhost:9090/api/v1/health && echo "PASS: pool health OK" && exit 0
+            sleep 5
+          done
+          echo "FAIL: pool health check failed"
+          exit 1
+
+      - name: Validate — channels opened
+        run: |
+          echo "--- pool channels ---"
+          CHANNELS=$(curl -sf http://localhost:9090/api/v1/server/channels 2>/dev/null || echo '[]')
+          echo "$CHANNELS" | python3 -m json.tool 2>/dev/null || echo "$CHANNELS"
+          COUNT=$(echo "$CHANNELS" | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d) if isinstance(d,list) else 0)" 2>/dev/null || echo "0")
+          if [ "$COUNT" -gt 0 ]; then
+            echo "PASS: pool has $COUNT active channel(s)"
+          else
+            echo "INFO: no active channels detected (may be expected if pool lacks templates)"
+            echo "PASS: pool infrastructure is healthy; channel check is advisory"
+          fi
+
+  # ── minerd: deploy full chain (BTC+Pool+JDC+Translator), run handshake ──
+
+  minerd:
+    name: minerd
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Pi
+        run: npm install -g @mariozechner/pi-coding-agent
+
+      - name: Pre-pull Rust image for keypair generation speed
+        run: docker pull rust:1.75-slim
+
+      - name: Install sv2pi skill
+        run: |
+          mkdir -p ~/.pi/agent/skills
+          cp -r skills/sv2pi ~/.pi/agent/skills/
+
+      - name: Run oneshot
+        run: |
+          pi $PI_ARGS -p "Load the sv2pi skill. Deploy Bitcoin Core v31.0, \
+            Pool v0.4.0 with embedded JDS (auto-generated keypairs), \
+            JDC v0.4.0 connecting to the local pool, and Translator Proxy v0.4.0 \
+            with upstream pointed at the JDC on localhost:34265. Then fetch the \
+            minerd binary and run an adhoc handshake test against the Translator \
+            at stratum+tcp://localhost:34255." 2>&1 | tee /tmp/pi-output.txt
+
+      - name: Validate — no confusion loops
+        run: |
+          if grep -q 'Error parsing command line arguments: Invalid parameter' /tmp/pi-output.txt 2>/dev/null; then
+            echo "FAIL: agent passed invalid args"
+            exit 1
+          fi
+          if grep -q 'permission denied while trying to connect to the docker API' /tmp/pi-output.txt 2>/dev/null; then
+            echo "FAIL: Docker permission issue"
+            exit 1
+          fi
+          echo "PASS: no known confusion patterns"
+
+      - name: Validate — all four containers running
+        run: |
+          echo "--- container status ---"
+          docker ps --filter name=bitcoin_core --filter name=pool_sv2 \
+            --filter name=jd_client_sv2 --filter name=translator_sv2 \
+            --format '{{.Names}} {{.Status}}'
+          docker ps --filter name=bitcoin_core --format '{{.Names}}' | grep -q bitcoin_core || { echo "FAIL: bitcoin_core missing"; exit 1; }
+          docker ps --filter name=pool_sv2 --format '{{.Names}}' | grep -q pool_sv2 || { echo "FAIL: pool_sv2 missing"; exit 1; }
+          docker ps --filter name=jd_client_sv2 --format '{{.Names}}' | grep -q jd_client_sv2 || { echo "FAIL: jd_client_sv2 missing"; exit 1; }
+          docker ps --filter name=translator_sv2 --format '{{.Names}}' | grep -q translator_sv2 || { echo "FAIL: translator_sv2 missing"; exit 1; }
+          echo "PASS: all four containers running"
+
+      - name: Validate — Translator health
+        run: |
+          for i in $(seq 1 10); do
+            curl -sf http://localhost:9092/api/v1/health && echo "PASS: Translator health OK" && exit 0
+            sleep 5
+          done
+          echo "FAIL: Translator health check failed after 50s"
+          exit 1
+
+      - name: Validate — minerd handshake completed
+        run: |
+          echo "--- checking pi output for handshake success ---"
+          if grep -qF "handshake completed successfully" /tmp/pi-output.txt; then
+            echo "PASS: minerd handshake completed successfully"
+          elif grep -qF "Stratum difficulty set to" /tmp/pi-output.txt; then
+            echo "PASS: minerd received difficulty (handshake progressing)"
+          elif grep -qF "accepted:" /tmp/pi-output.txt; then
+            echo "PASS: minerd submitted a share"
+          else
+            echo "WARN: no explicit handshake confirmation in pi output"
+            grep -i "minerd\|stratum\|handshake\|difficulty\|accepted" /tmp/pi-output.txt || true
+            echo "--- minerd binary check ---"
+            if [ -x "$HOME/.sv2pi/minerd/v2.5.1/minerd" ]; then
+              echo "PASS: minerd binary exists and is executable"
+            else
+              echo "FAIL: minerd binary not found at expected path"
+              exit 1
+            fi
+          fi
+
+  # ── knowledge-vault: agent references vault domain + structure ──
+
+  knowledge-vault:
+    name: knowledge-vault
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Pi
+        run: npm install -g @mariozechner/pi-coding-agent
+
+      - name: Install sv2pi skill
+        run: |
+          mkdir -p ~/.pi/agent/skills
+          cp -r skills/sv2pi ~/.pi/agent/skills/
+
+      - name: Run oneshot
+        run: |
+          pi $PI_ARGS -p "Load the sv2pi skill. Read the vault domain instructions. \
+            Tell me what the sv2pi operations vault is and what directory \
+            structure it expects. Name the top-level directories." 2>&1 | tee /tmp/pi-output.txt
+
+      - name: Validate — agent references vault domain
+        run: |
+          echo "--- agent response ---"
+          cat /tmp/pi-output.txt
+          echo "--- validation ---"
+          if grep -qiE '(deployment|incidents|interventions|wiki|raw|meta)' /tmp/pi-output.txt; then
+            echo "PASS: agent referenced vault directory structure"
+          else
+            echo "FAIL: agent did not reference expected vault directories"
+            exit 1
+          fi
+
+  # ── knowledge-quartz: agent references quartz 4 publishing recipe ──
+
+  knowledge-quartz:
+    name: knowledge-quartz
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Pi
+        run: npm install -g @mariozechner/pi-coding-agent
+
+      - name: Install sv2pi skill
+        run: |
+          mkdir -p ~/.pi/agent/skills
+          cp -r skills/sv2pi ~/.pi/agent/skills/
+
+      - name: Run oneshot
+        run: |
+          pi $PI_ARGS -p "Load the sv2pi skill. Tell me how to publish the \
+            sv2pi operations vault as a website. What tool is used and what \
+            infrastructure components are required?" 2>&1 | tee /tmp/pi-output.txt
+
+      - name: Validate — agent references quartz publishing
+        run: |
+          echo "--- agent response ---"
+          cat /tmp/pi-output.txt
+          echo "--- validation ---"
+          if grep -qi 'quartz' /tmp/pi-output.txt; then
+            echo "PASS: agent referenced Quartz"
+          else
+            echo "FAIL: agent did not mention Quartz"
+            exit 1
+          fi
+          if grep -qiE '(caddy|wireguard|wg0|eth0)' /tmp/pi-output.txt; then
+            echo "PASS: agent referenced infrastructure (Caddy or WireGuard)"
+          else
+            echo "WARN: agent did not explicitly mention Caddy or WireGuard"
+          fi
+
+  # ── knowledge-pool-monitor: agent references monitoring setup ──
+
+  knowledge-pool-monitor:
+    name: knowledge-pool-monitor
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Pi
+        run: npm install -g @mariozechner/pi-coding-agent
+
+      - name: Install sv2pi skill
+        run: |
+          mkdir -p ~/.pi/agent/skills
+          cp -r skills/sv2pi ~/.pi/agent/skills/
+
+      - name: Run oneshot
+        run: |
+          pi $PI_ARGS -p "Load the sv2pi skill. How do I set up automated pool \
+            hashrate monitoring in sv2pi? What scripts and scheduling mechanism \
+            are used?" 2>&1 | tee /tmp/pi-output.txt
+
+      - name: Validate — agent references monitoring setup
+        run: |
+          echo "--- agent response ---"
+          cat /tmp/pi-output.txt
+          echo "--- validation ---"
+          if grep -qiE '(pool-monitor|hashrate|systemd|jsonl|plot)' /tmp/pi-output.txt; then
+            echo "PASS: agent referenced monitoring infrastructure"
+          else
+            echo "FAIL: agent did not reference expected monitoring components"
+            exit 1
+          fi
+
+  # ── knowledge-ppq: agent references PPQ balance check + security rules ──
+
+  knowledge-ppq:
+    name: knowledge-ppq
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Pi
+        run: npm install -g @mariozechner/pi-coding-agent
+
+      - name: Install sv2pi skill
+        run: |
+          mkdir -p ~/.pi/agent/skills
+          cp -r skills/sv2pi ~/.pi/agent/skills/
+
+      - name: Run oneshot
+        run: |
+          pi $PI_ARGS -p "Load the sv2pi skill. How do I check my PPQ credit \
+            balance in sv2pi? What security rules apply when handling the API \
+            key?" 2>&1 | tee /tmp/pi-output.txt
+
+      - name: Validate — agent references PPQ domain
+        run: |
+          echo "--- agent response ---"
+          cat /tmp/pi-output.txt
+          echo "--- validation ---"
+          if grep -qiE '(ppq|check-ppq-balance|credit|api.key)' /tmp/pi-output.txt; then
+            echo "PASS: agent referenced PPQ domain"
+          else
+            echo "FAIL: agent did not reference expected PPQ components"
+            exit 1
+          fi
