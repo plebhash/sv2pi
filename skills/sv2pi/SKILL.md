@@ -344,7 +344,7 @@ The sv2-tp frozen directory contains:
 - `{baseDir}/scripts/check-ppq-balance.py` — live PPQ credit balance probe (reads API key from Pi config, never prints it)
 - `{baseDir}/scripts/deploy-bitcoin.sh` — deploy Bitcoin Core with IPC enabled
 - `{baseDir}/scripts/deploy-cpu-miner.sh` — deploy Sv2 CPU Miner for share-flow testing
-- `{baseDir}/scripts/deploy-jd.sh` — deploy Job Declarator Client
+- `{baseDir}/scripts/deploy-jdc.sh` — deploy Job Declarator Client
 - `{baseDir}/scripts/deploy-pool.sh` — deploy Pool with optional embedded JDS
 - `{baseDir}/scripts/deploy-tp.sh` — deploy sv2-tp
 - `{baseDir}/scripts/deploy-translator.sh` — deploy Translator Proxy
