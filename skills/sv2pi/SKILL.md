@@ -47,10 +47,23 @@ Domain instructions live at `{baseDir}/domains/`. Load detailed domain content o
 
 This skill classifies every operation into one of two symbolic model slots. When a human mentions `ADMIN_MODEL` or `DEFAULT_MODEL`, these are the definitions:
 
-| Tier | Symbol | Scope |
-|---|---|---|
-| **Admin** | `ADMIN_MODEL` | Critical, escalation, safety/policy/config changes, skill design, deployment-authority changes, persistent-memory/schema changes, access-control changes, model-routing policy changes. Restricted to the deployment's admin human on Discord. |
-| **Default** | `DEFAULT_MODEL` | Day-to-day, routine, unprivileged operational work: status checks, monitoring queries, vault lookups, log triage, PPQ balance probes, pool hashrate reports, SRI community support. Used by all Discord users. |
+```
++---------+----------------+--------------------------------------------------+
+| Tier    | Symbol         | Scope                                            |
++---------+----------------+--------------------------------------------------+
+| Admin   | `ADMIN_MODEL`  | Critical, escalation, safety/policy/config       |
+|         |                | changes, skill design, deployment-authority      |
+|         |                | changes, persistent-memory/schema changes,       |
+|         |                | access-control changes, model-routing policy     |
+|         |                | changes. Restricted to the deployment's admin    |
+|         |                | human on Discord.                                |
+| Default | `DEFAULT_MODEL`| Day-to-day, routine, unprivileged operational    |
+|         |                | work: status checks, monitoring queries, vault   |
+|         |                | lookups, log triage, PPQ balance probes, pool    |
+|         |                | hashrate reports, SRI community support. Used by |
+|         |                | all Discord users.                               |
++---------+----------------+--------------------------------------------------+
+```
 
 **Concrete model IDs** (e.g., `ppq/claude-sonnet-4.6`, `ppq/gpt-5.3-codex`) are deployment configuration in the operations vault and runtime config — they are not hardcoded into this skill. When you see `ADMIN_MODEL` or `DEFAULT_MODEL` in a domain file, think "the model backing this tier" rather than a specific model name.
 
