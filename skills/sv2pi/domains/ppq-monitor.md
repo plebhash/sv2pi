@@ -1,4 +1,4 @@
-## PPQ Credit Balance Check
+## PPQ Credit Balance Monitor
 
 The sv2bot agent uses PPQ (PayPerQ) as its LLM provider. Checking the PPQ credit balance is part of operational maintenance — low or zero balance can cause model calls to fail.
 
@@ -6,6 +6,8 @@ Use this when the user asks about:
 - "PPQ credit" or "PayPerQ balance"
 - "credits remaining" or "LLM provider balance"
 - "why model calls are failing due to insufficient credit"
+
+**Model routing:** PPQ balance monitoring is a **DEFAULT_MODEL** operation. It is a routine operational report, not an admin/policy/safety change. The daily Discord report and on-demand balance checks both route through DEFAULT_MODEL.
 
 ### Security Rules
 
@@ -113,6 +115,109 @@ Format: ISO-8601 UTC timestamp, balance as a decimal float. The script never pri
 - Correlate consumption spikes with specific tasks or model usage.
 
 The full vault tracking convention is documented in `{baseDir}/domains/vault.md`.
+
+### Daily Discord Balance Report
+
+Once per day, a scripted report probes the current PPQ balance, reads the hourly readings CSV to compute burn rate and depletion forecast, posts a formatted summary to Discord, and logs a daily entry to the vault. This is a **scripted, non-LLM operation** — shell script, no token consumption. Model routing is **DEFAULT_MODEL** because this is routine operational reporting.
+
+**What it produces:**
+
+1. A Discord message in `⛏️sv2bot🤖` with current balance, 24h burn rate, and estimated days remaining.
+2. A daily summary line appended to `$HOME/vault/ppq-readings/daily-report.md`.
+3. If balance is critically low (below a configured threshold), a prominent ⚠️ warning in the Discord message.
+
+**Script:**
+
+```text
+{baseDir}/scripts/ppq-daily-report.sh
+```
+
+Environment variables:
+
+```text
+SV2PI_PPQ_DAILY_DISCORD=0              # disable Discord posting
+SV2PI_PPQ_DAILY_DISCORD_CHANNEL_ID=<id> # override target channel (default: 1501133804058710116)
+SV2PI_PPQ_LOW_BALANCE_THRESHOLD=5.00    # $ balance below which to emit ⚠️ warning (default: 5.00)
+SV2PI_PICORD_ENV=<path>                 # override Picord env file (default: /home/sv2bot/.picord/.env)
+```
+
+**Discord message format:**
+
+```
+💰 PPQ Balance Report — 2026-05-08
+
+Balance: $18.79
+24h burn: $0.17
+7d avg burn: $0.15/day
+Est. days remaining: ~125 days
+
+⚠️ Balance below $5.00 threshold — top up soon.
+```
+
+The ⚠️ line only appears when balance is below the threshold. The message uses `allowed_mentions: {parse: []}` to avoid spurious pings. If posting fails, errors go to `/tmp/sv2pi-ppq-discord-post.log` and the script exits non-zero but does not abort the vault logging step.
+
+**Vault daily log:**
+
+```text
+$HOME/vault/ppq-readings/daily-report.md
+```
+
+Each run appends a markdown list entry:
+
+```markdown
+- **2026-05-08:** $18.79 | 24h burn: $0.17 | ~125 days remaining
+```
+
+The script creates the file with a `# PPQ Daily Balance Log` header on first write if it doesn't exist.
+
+**Timer/service:**
+
+```ini
+# ~/.config/systemd/user/sv2pi-ppq-daily-report.service
+[Unit]
+Description=Daily PPQ balance report (DEFAULT_MODEL)
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.pi/agent/git/github.com/plebhash/sv2pi/skills/sv2pi/scripts/ppq-daily-report.sh
+StandardOutput=journal
+StandardError=journal
+```
+
+```ini
+# ~/.config/systemd/user/sv2pi-ppq-daily-report.timer
+[Unit]
+Description=Daily PPQ balance Discord report
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=180
+Persistent=true
+Unit=sv2pi-ppq-daily-report.service
+
+[Install]
+WantedBy=timers.target
+```
+
+**Commands:**
+
+```bash
+# Enable and start the timer
+systemctl --user enable --now sv2pi-ppq-daily-report.timer
+
+# Check timer status
+systemctl --user list-timers sv2pi-ppq-daily-report.timer --no-pager
+
+# Manual trigger (immediate run)
+systemctl --user start sv2pi-ppq-daily-report.service
+
+# Check logs
+journalctl --user -u sv2pi-ppq-daily-report.service -n 20 --no-pager
+
+# Disable
+systemctl --user disable --now sv2pi-ppq-daily-report.timer
+```
 
 ### Error Semantics
 
