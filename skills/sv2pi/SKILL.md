@@ -59,6 +59,7 @@ Use all four sources together. The vault gives durable cross-session context and
 | Serve, publish, show, expose, or repair the vault web UI | `read {baseDir}/domains/quartz.md` |
 | Check PPQ credit balance or model-credit failures | `read {baseDir}/domains/ppq-monitor.md` |
 | Enable or diagnose automated pool hashrate monitoring | `read {baseDir}/domains/pool-monitor.md` |
+| Bootstrap, configure, diagnose, or change Discord/Picord/sv2bot community access | `read {baseDir}/domains/discord.md` |
 
 Before deployment actions, perform a quick vault check (read `$HOME/vault/README.md` for binding directives). For health diagnosis, crash investigation, or topology questions, read the vault domain and then re-validate live state. Before role-specific crash diagnosis, read the relevant role domain.
 
@@ -312,6 +313,7 @@ Then update `authority_public_key` and `authority_secret_key` in each app's conf
 - `{baseDir}/domains/quartz.md` — Quartz 4 publishing workflow for the vault web UI
 - `{baseDir}/domains/ppq-monitor.md` — PPQ credit balance checks and secret handling
 - `{baseDir}/domains/pool-monitor.md` — automated pool hashrate monitoring and dashboard publishing
+- `{baseDir}/domains/discord.md` — Discord/Picord community bot onboarding, access policy, runtime management, sv2bot-discord fork, file sending, and interaction digests
 
 ### Static references (bundled with the skill)
 - `{baseDir}/references/architecture.md` — SRI app architecture and connection flow
