@@ -70,7 +70,7 @@ $HOME/vault/
 ├── deployment/                # migrated sv2pi operational state pages
 ├── interventions/             # operator/agent intervention records
 ├── incidents/                 # crash reports and incident analyses
-├── ppq-readings/              # hourly PPQ credit balance readings (time-series CSV)
+├── ppq-readings/              # hourly PPQ credit balance readings and consolidation costs (time-series CSV)
 ├── raw/sources/               # immutable source packets; extension-owned
 ├── wiki/                      # editable LLM Wiki pages: sources/entities/concepts/syntheses/analyses
 ├── meta/                      # auto-generated registry/backlinks/log; extension-owned
@@ -102,6 +102,27 @@ $HOME/vault/ppq-readings/
 **Initialization:** If the directory or CSV does not exist, the logging script creates it on first write. No manual vault initialization is needed for PPQ readings.
 
 Detailed probe behavior is documented in `{baseDir}/domains/ppq-monitor.md`.
+
+#### Consolidation Costs
+
+The `consolidation-costs.csv` file records the PPQ credit cost of each daily vault consolidation run:
+
+```text
+$HOME/vault/ppq-readings/
+├── readings.csv
+└── consolidation-costs.csv
+```
+
+**Format:** CSV with four columns — ISO-8601 UTC timestamp, balance before consolidation, balance after, and cost delta:
+
+```csv
+timestamp,before,after,cost
+2026-05-08T01:00:00Z,18.791,18.745,0.046
+```
+
+**Writing:** Written by the agent at the end of each consolidation run as part of the post-consolidation phase (see [Post-consolidation](#post-consolidation)). Never edit this CSV manually.
+
+**Reading:** To analyze long-term consolidation costs, read `consolidation-costs.csv` directly. Compute average daily cost, detect cost trends (is ADMIN_MODEL getting cheaper or more expensive over time?), and forecast monthly consolidation budget.
 
 Respect the `pi-llm-wiki` rules:
 
@@ -165,6 +186,7 @@ Before any consolidation work, the agent MUST:
 4. **Inventory recent pages:** List all files under `$HOME/vault/interventions/` and `$HOME/vault/incidents/` modified in the last 7 days.
 5. **Run health scan:** `wiki_lint` to detect orphans, missing pages, contradictions, and gaps.
 6. **Read the last consolidation report:** `$HOME/vault/analyses/consolidation-*.md` (most recent) to understand what was done last time and what was flagged for follow-up.
+7. **Probe PPQ balance (before):** Run `python3 {baseDir}/scripts/check-ppq-balance.py` and record the balance. This is the starting credit before consolidation consumes tokens.
 
 ### Analysis phase
 
@@ -217,8 +239,11 @@ Identify cross-cutting themes across interventions:
 
 ### Post-consolidation
 
-1. **Write consolidation report:** Create `$HOME/vault/analyses/consolidation-YYYY-MM-DD.md` (use `wiki_ensure_page(type="analysis", title="consolidation-YYYY-MM-DD")`). The report must include:
+1. **Probe PPQ balance (after):** Run `python3 {baseDir}/scripts/check-ppq-balance.py` again after all consolidation work is complete. Compute the delta: `before − after = cost`.
+
+2. **Write consolidation report:** Create `$HOME/vault/analyses/consolidation-YYYY-MM-DD.md` (use `wiki_ensure_page(type="analysis", title="consolidation-YYYY-MM-DD")`). The report must include:
    - Timestamp and model used.
+   - PPQ credit balance: before, after, and delta (cost of this consolidation run).
    - Pre-flight state summary (vault vs. live state).
    - Pages merged (with before/after filenames).
    - Deployment pages updated (with drift details).
@@ -226,11 +251,17 @@ Identify cross-cutting themes across interventions:
    - Issues flagged for human review.
    - Open follow-up items for next consolidation.
 
-2. **Rebuild metadata:** `wiki_rebuild_meta`.
+3. **Append cost to time-series CSV:** Write the before/after/delta to `$HOME/vault/ppq-readings/consolidation-costs.csv`:
+   ```csv
+   2026-05-08T01:00:00Z,18.791,18.745,0.046
+   ```
+   Format: `timestamp,before,after,cost`. If the file doesn't exist, create it with a header row: `timestamp,before,after,cost`.
 
-3. **Verify health:** `wiki_lint` and confirm zero new orphans. If orphans remain, resolve them.
+4. **Rebuild metadata:** `wiki_rebuild_meta`.
 
-4. **Log the event:** `wiki_log_event(kind="consolidation", details={...})` with summary counts.
+5. **Verify health:** `wiki_lint` and confirm zero new orphans. If orphans remain, resolve them.
+
+6. **Log the event:** `wiki_log_event(kind="consolidation", details={...})` with summary counts including the credit delta.
 
 ### Scheduling mechanism
 
