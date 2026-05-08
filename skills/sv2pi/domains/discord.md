@@ -99,7 +99,8 @@ Current intended posture:
 
 Operational meaning:
 
-- DMs are disabled for everyone to avoid unsolicited PPQ-credit burn.
+- `allowDm: false` disables **inbound DM sessions** (users cannot DM the bot to start a Pi session) to avoid unsolicited PPQ-credit burn.
+- This does **not** mean the bot account is incapable of sending an outbound DM. Outbound DMs are allowed for explicit operator requests (for example, sending a confirmation DM to `plebhash`).
 - Guild access is restricted to the Stratum V2 guild and the private `⛏️sv2bot🤖` channel.
 - Access is based on private-channel membership/permission, not per-user allowlisting.
 - Guild non-thread messages must explicitly mention `@sv2bot` before Picord starts a session/thread.
@@ -119,6 +120,34 @@ for k in ['allowDm','allowedGuildIds','allowedChannelIds','allowedUserIds','work
     print(k, c.get(k))
 print('systemPromptAppend length', len(c.get('systemPromptAppend','')))
 PY
+```
+
+Send an outbound DM (explicit operator request only; never print token):
+
+```bash
+cd /home/sv2bot/sv2bot-discord 2>/dev/null || cd /home/sv2bot/.local/share/pi-node/node-v22.22.2-linux-x64/lib/node_modules/@venthezone/picord
+set -a && source /home/sv2bot/.picord/.env && set +a
+node --input-type=module - <<'NODE'
+import { Client, GatewayIntentBits } from 'discord.js';
+const token = process.env.PICORD_DISCORD_TOKEN || process.env.DISCORD_BOT_TOKEN;
+const userId = '602790129500684308'; // plebhash
+const content = 'sv2bot update: Discord DM handling issue has been resolved.';
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.DirectMessages] });
+client.once('ready', async () => {
+  try {
+    const user = await client.users.fetch(userId);
+    const dm = await user.createDM();
+    const msg = await dm.send({ content, allowedMentions: { parse: [] } });
+    console.log('dm sent', msg.id);
+  } catch (e) {
+    console.error('dm send failed', e?.name, e?.message);
+    process.exitCode = 1;
+  } finally {
+    await client.destroy();
+  }
+});
+await client.login(token);
+NODE
 ```
 
 ---
