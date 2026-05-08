@@ -5,18 +5,35 @@ description: Agentic deployment of the Stratum V2 Reference Implementation (SRI)
 
 # sv2pi — SRI Agentic Deployment
 
+> **No Markdown tables in this skill space.**
+> All tabular data uses ASCII box tables inside fenced code blocks.
+> Rationale: this skill is exposed to Discord via sv2bot/Picord, and Discord does not render Markdown pipe tables.
+> Example format:
+> ```
+> +----------+--------------------+
+> | Column A | Column B           |
+> +----------+--------------------+
+> | value    | description        |
+> +----------+--------------------+
+> ```
+
 Agentic deployment skill for the [Stratum V2 Reference Implementation](https://github.com/stratum-mining) on Bitcoin mainnet.
 
 This skill deploys Bitcoin Core, four SRI-related Docker roles, and two testing tools:
-| Role | Source |
-|---|---|
-| Bitcoin Core | `bitcoin/bitcoin:latest` |
-| Sv2 Template Provider | `stratumv2/sv2-tp` |
-| Pool (with embedded JDS) | `stratumv2/pool_sv2` |
-| Job Declarator Client (JDC) | `stratumv2/jd_client_sv2` |
-| Translator Proxy (SV1→SV2 bridge) | `stratumv2/translator_sv2` |
-| Sv2 CPU Miner (testing) | `rust:latest` (clones `plebhash/sv2-cpu-miner`) |
-| minerd SV1 CPU Miner (testing) | fetched tarball (cpuminer v2.5.1) |
+
+```
++----------------------------------+----------------------------------------------+
+| Role                             | Source                                       |
++----------------------------------+----------------------------------------------+
+| Bitcoin Core                     | bitcoin/bitcoin:latest                       |
+| Sv2 Template Provider            | stratumv2/sv2-tp                             |
+| Pool (with embedded JDS)         | stratumv2/pool_sv2                           |
+| Job Declarator Client (JDC)      | stratumv2/jd_client_sv2                      |
+| Translator Proxy (SV1->SV2)      | stratumv2/translator_sv2                     |
+| Sv2 CPU Miner (testing)          | rust:latest (clones plebhash/sv2-cpu-miner)  |
+| minerd SV1 CPU Miner (testing)   | fetched tarball (cpuminer v2.5.1)            |
++----------------------------------+----------------------------------------------+
+```
 
 **sv2-ui** (`stratumv2/sv2-ui`) is planned for a follow-up release and is currently out of scope. If a user asks about sv2-ui, acknowledge it is on the roadmap but not yet available in this skill.
 
@@ -45,21 +62,27 @@ Use all four sources together. The vault gives durable cross-session context and
 
 `SKILL.md` is the concise orchestrator. Use the architecture and dependency graph below to decide what the user needs, then read only the relevant domain files before acting.
 
-| User intent | Required domain read |
-|---|---|
-| Any SRI app deployment or config choice | `read {baseDir}/domains/deployment-context.md` first, then the role domain |
-| Deploy, reuse, snapshot, or diagnose Bitcoin Core | `read {baseDir}/domains/bitcoin-core.md` |
-| Deploy or diagnose sv2-tp | `read {baseDir}/domains/sv2-tp.md` |
-| Deploy or diagnose Pool/JDS | `read {baseDir}/domains/pool.md` |
-| Deploy or diagnose JDC | `read {baseDir}/domains/jdc.md` |
-| Deploy or diagnose Translator Proxy | `read {baseDir}/domains/translator.md` |
-| Deploy or diagnose Sv2 CPU Miner | `read {baseDir}/domains/sv2-cpu-miner.md` |
-| Deploy or diagnose minerd SV1 load | `read {baseDir}/domains/minerd.md` |
-| Health diagnosis, crash investigation, topology questions, persistent memory, explicit vault queries, or vault consolidation | `read {baseDir}/domains/vault.md` |
-| Serve, publish, show, expose, or repair the vault web UI | `read {baseDir}/domains/quartz.md` |
-| Check PPQ credit balance or model-credit failures | `read {baseDir}/domains/ppq-monitor.md` |
-| Enable or diagnose automated pool hashrate monitoring | `read {baseDir}/domains/pool-monitor.md` |
-| Bootstrap, configure, diagnose, or change Discord/Picord/sv2bot community access | `read {baseDir}/domains/discord.md` |
+```
++-----------------------------------------------------------------------------------------------+----------------------------------------------------------+
+| User intent                                                                                   | Required domain read                                     |
++-----------------------------------------------------------------------------------------------+----------------------------------------------------------+
+| Any SRI app deployment or config choice                                                       | deployment-context.md first, then the role domain        |
+| Deploy, reuse, snapshot, or diagnose Bitcoin Core                                             | bitcoin-core.md                                          |
+| Deploy or diagnose sv2-tp                                                                     | sv2-tp.md                                                |
+| Deploy or diagnose Pool/JDS                                                                   | pool.md                                                  |
+| Deploy or diagnose JDC                                                                        | jdc.md                                                   |
+| Deploy or diagnose Translator Proxy                                                           | translator.md                                            |
+| Deploy or diagnose Sv2 CPU Miner                                                              | sv2-cpu-miner.md                                         |
+| Deploy or diagnose minerd SV1 load                                                            | minerd.md                                                |
+| Health diagnosis, crash investigation, topology questions, persistent memory, vault queries   | vault.md                                                 |
+| Serve, publish, show, expose, or repair the vault web UI                                      | quartz.md                                                |
+| Check PPQ credit balance or model-credit failures                                             | ppq-monitor.md                                           |
+| Enable or diagnose automated pool hashrate monitoring                                         | pool-monitor.md                                          |
+| Bootstrap, configure, diagnose, or change Discord/Picord/sv2bot community access             | discord.md                                               |
++-----------------------------------------------------------------------------------------------+----------------------------------------------------------+
+```
+
+All domain files live under `{baseDir}/domains/`. Load with `read {baseDir}/domains/<file>`.
 
 Before deployment actions, perform a quick vault check (read `$HOME/vault/README.md` for binding directives). For health diagnosis, crash investigation, or topology questions, read the vault domain and then re-validate live state. Before role-specific crash diagnosis, read the relevant role domain.
 
@@ -173,12 +196,16 @@ Each SRI app has prerequisites. Some prerequisites can be satisfied in multiple 
 
 **Key relationships:**
 
-| App | Prerequisites | Alternatives |
-|---|---|---|
-| **sv2_tp** | Bitcoin Core (IPC) | — |
-| **pool_sv2** | Template Provider | IPC (direct to BTC Core) or Sv2Tp (TCP to sv2-tp) |
-| **jd_client_sv2** | Template Provider + Pool (JDS endpoint) | Template Provider: IPC or Sv2Tp. Pool: usually local but can be remote |
-| **translator_sv2** | Upstream SV2 Mining Server | JDC (34265), Pool directly (3333), or any remote SV2 server |
+```
++------------------+------------------------------------------+-----------------------------------------------+
+| App              | Prerequisites                            | Alternatives                                  |
++------------------+------------------------------------------+-----------------------------------------------+
+| sv2_tp           | Bitcoin Core (IPC)                       | -                                             |
+| pool_sv2         | Template Provider                        | IPC (direct to BTC Core) or Sv2Tp (TCP)       |
+| jd_client_sv2    | Template Provider + Pool (JDS endpoint)  | TP: IPC or Sv2Tp. Pool: local or remote       |
+| translator_sv2   | Upstream SV2 Mining Server               | JDC (34265), Pool (3333), or remote SV2 srv   |
++------------------+------------------------------------------+-----------------------------------------------+
+```
 
 **sv2-tp as a standalone service:** sv2-tp can be deployed independently — without any Pool or JDC — for Template-Provider-as-a-Service deployments where the TP operator provides templates to remote pools and JDCs.
 
@@ -232,13 +259,18 @@ curl -s http://localhost:9092/api/v1/server/channels | python3 -m json.tool
 ```
 
 Track these metrics over time:
-| Metric | What it means |
-|---|---|
-| `server.channels` count | Active mining connections at each hop |
-| `server.hashrate_total` | Aggregate hashrate |
-| `clients[].hashrate_total` | Per-client hashrate |
-| `shares_accepted_total` | Cumulative accepted shares |
-| `sv1.clients` count | Legacy SV1 miners connected |
+
+```
++------------------------------+----------------------------------------------+
+| Metric                       | What it means                                |
++------------------------------+----------------------------------------------+
+| server.channels count        | Active mining connections at each hop        |
+| server.hashrate_total        | Aggregate hashrate                           |
+| clients[].hashrate_total     | Per-client hashrate                          |
+| shares_accepted_total        | Cumulative accepted shares                   |
+| sv1.clients count            | Legacy SV1 miners connected                  |
++------------------------------+----------------------------------------------+
+```
 
 ---
 
@@ -257,13 +289,17 @@ docker ps -a --filter "name=pool_sv2" --filter "name=jd_client_sv2" --filter "na
 
 1. **Analyze source first.** Read the relevant source files at `~/.cache/sv2pi/sv2-apps-$DEPLOY_TAG/` to identify log message formats, error strings, and diagnostic patterns:
 
-| App | Key source paths |
-|---|---|---|
-| sv2-tp | `src/sv2/` (template_provider, connman, messages, noise, transport) |
-| Pool | `pool-apps/pool/src/` |
-| JDC | `miner-apps/jd-client/src/` |
-| Translator | `miner-apps/translator/src/` |
-| Monitoring | `stratum-apps/src/monitoring/` |
+```
++------------+---------------------------------------------------------------+
+| App        | Key source paths                                              |
++------------+---------------------------------------------------------------+
+| sv2-tp     | src/sv2/ (template_provider, connman, messages, noise, etc.)  |
+| Pool       | pool-apps/pool/src/                                           |
+| JDC        | miner-apps/jd-client/src/                                     |
+| Translator | miner-apps/translator/src/                                    |
+| Monitoring | stratum-apps/src/monitoring/                                  |
++------------+---------------------------------------------------------------+
+```
 
 2. **Grep with source-derived patterns.** Use the error strings and log patterns found in source code to filter logs:
 

@@ -4,28 +4,36 @@ All SRI apps expose an HTTP JSON API on their configured `monitoring_address`. T
 
 ## Endpoints
 
-| Endpoint | All Roles | Pool | JDC | Translator |
-|---|---|---|---|---|
-| `/swagger-ui` | ✓ | | | |
-| `/api-docs/openapi.json` | ✓ | | | |
-| `/api/v1/health` | ✓ | | | |
-| `/api/v1/global` | ✓ | | | |
-| `/api/v1/server` | ✓ | | | |
-| `/api/v1/server/channels` | ✓ | | | |
-| `/api/v1/clients` | ✓ | | | |
-| `/api/v1/clients/{id}` | ✓ | | | |
-| `/api/v1/clients/{id}/channels` | ✓ | | | |
-| `/api/v1/sv1/clients` | | | | ✓ |
-| `/api/v1/sv1/clients/{id}` | | | | ✓ |
-| `/metrics` (Prometheus) | ✓ | | | |
+```
++---------------------------------+-----------+------+-----+------------+
+| Endpoint                        | All Roles | Pool | JDC | Translator |
++---------------------------------+-----------+------+-----+------------+
+| /swagger-ui                     | yes       |      |     |            |
+| /api-docs/openapi.json          | yes       |      |     |            |
+| /api/v1/health                  | yes       |      |     |            |
+| /api/v1/global                  | yes       |      |     |            |
+| /api/v1/server                  | yes       |      |     |            |
+| /api/v1/server/channels         | yes       |      |     |            |
+| /api/v1/clients                 | yes       |      |     |            |
+| /api/v1/clients/{id}            | yes       |      |     |            |
+| /api/v1/clients/{id}/channels   | yes       |      |     |            |
+| /api/v1/sv1/clients             |           |      |     | yes        |
+| /api/v1/sv1/clients/{id}        |           |      |     | yes        |
+| /metrics (Prometheus)           | yes       |      |     |            |
++---------------------------------+-----------+------+-----+------------+
+```
 
 ## Default Monitoring Ports
 
-| Role | Default Port |
-|---|---|
-| pool_sv2 | 9090 |
-| jd_client_sv2 | 9091 |
-| translator_sv2 | 9092 |
+```
++----------------+--------------+
+| Role           | Default Port |
++----------------+--------------+
+| pool_sv2       | 9090         |
+| jd_client_sv2  | 9091         |
+| translator_sv2 | 9092         |
++----------------+--------------+
+```
 
 ## Key Endpoint Details
 
@@ -48,20 +56,24 @@ Legacy SV1 mining devices connected to the translator proxy. Shows per-device ha
 
 Available at `/metrics`:
 
-| Metric | Description |
-|---|---|
-| `sv2_uptime_seconds` | Server uptime |
-| `sv2_server_channels` | Active channel count |
-| `sv2_server_hashrate_total` | Aggregate server hashrate |
-| `sv2_server_channel_hashrate` | Per-channel hashrate |
-| `sv2_server_shares_accepted_total` | Cumulative accepted shares |
-| `sv2_server_blocks_found_total` | Blocks found |
-| `sv2_clients_total` | Connected client count |
-| `sv2_client_channels` | Per-client channel count |
-| `sv2_client_hashrate_total` | Per-client hashrate |
-| `sv2_client_shares_accepted_total` | Per-client share acceptance |
-| `sv1_clients_total` | SV1 client count (Translator only) |
-| `sv1_hashrate_total` | Aggregate SV1 hashrate (Translator only) |
+```
++------------------------------------+------------------------------------------+
+| Metric                             | Description                              |
++------------------------------------+------------------------------------------+
+| sv2_uptime_seconds                 | Server uptime                            |
+| sv2_server_channels                | Active channel count                     |
+| sv2_server_hashrate_total          | Aggregate server hashrate                |
+| sv2_server_channel_hashrate        | Per-channel hashrate                     |
+| sv2_server_shares_accepted_total   | Cumulative accepted shares               |
+| sv2_server_blocks_found_total      | Blocks found                             |
+| sv2_clients_total                  | Connected client count                   |
+| sv2_client_channels                | Per-client channel count                 |
+| sv2_client_hashrate_total          | Per-client hashrate                      |
+| sv2_client_shares_accepted_total   | Per-client share acceptance              |
+| sv1_clients_total                  | SV1 client count (Translator only)       |
+| sv1_hashrate_total                 | Aggregate SV1 hashrate (Translator only) |
++------------------------------------+------------------------------------------+
+```
 
 ## Probing Strategy
 

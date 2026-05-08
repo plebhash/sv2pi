@@ -6,13 +6,17 @@ Stratum V1 replaced the obsolete `getwork` (HTTP pull-based) protocol in late 20
 
 ## Transport and Encoding
 
-| Property | SV1 | SV2 (for contrast) |
-|---|---|---|
-| **Encoding** | JSON-RPC 2.0 (text) | Binary framing |
-| **Transport** | Plain TCP (persistent socket) | TCP with Noise encryption |
-| **Framing** | Newline-delimited (`\n`) | Length-prefixed binary frames |
-| **Security** | None — plaintext | Authenticated encryption (Noise NX/KK/HH) |
-| **Bandwidth** | High (verbose JSON, hex-encoded fields) | Low (compact binary) |
+```
++------------+------------------------------------------+-----------------------------------------------+
+| Property   | SV1                                      | SV2 (for contrast)                            |
++------------+------------------------------------------+-----------------------------------------------+
+| Encoding   | JSON-RPC 2.0 (text)                      | Binary framing                                |
+| Transport  | Plain TCP (persistent socket)            | TCP with Noise encryption                     |
+| Framing    | Newline-delimited (\n)                   | Length-prefixed binary frames                 |
+| Security   | None - plaintext                         | Authenticated encryption (Noise NX/KK/HH)    |
+| Bandwidth  | High (verbose JSON, hex-encoded fields)  | Low (compact binary)                          |
++------------+------------------------------------------+-----------------------------------------------+
+```
 
 SV1 is a simple line-based protocol: each JSON-RPC message is a single line terminated by `\n`. The client and server exchange JSON-RPC requests, responses, and notifications over a persistent TCP connection.
 
@@ -143,17 +147,21 @@ Requests the full transaction set for a given job. Used by miners that perform t
 
 The core job distribution message. Each notification provides everything needed to construct a valid block header:
 
-| Field | Description |
-|---|---|
-| **job_id** | Unique identifier for this job |
-| **prevhash** | Hash of the previous block (32-byte hex, little-endian) |
-| **coinb1** | Generation transaction, part 1 (hex) |
-| **coinb2** | Generation transaction, part 2 (hex) |
-| **merkle_branches** | Array of hex merkle siblings for computing the merkle root |
-| **version** | Bitcoin block version (4-byte hex, little-endian) |
-| **nbits** | Encoded network difficulty target (4-byte hex, as in block header) |
-| **ntime** | Current network time (4-byte hex, little-endian) |
-| **clean_jobs** | Boolean — if true, miner must discard current work immediately |
+```
++-----------------+---------------------------------------------------------------------+
+| Field           | Description                                                         |
++-----------------+---------------------------------------------------------------------+
+| job_id          | Unique identifier for this job                                      |
+| prevhash        | Hash of the previous block (32-byte hex, little-endian)             |
+| coinb1          | Generation transaction, part 1 (hex)                                |
+| coinb2          | Generation transaction, part 2 (hex)                                |
+| merkle_branches | Array of hex merkle siblings for computing the merkle root          |
+| version         | Bitcoin block version (4-byte hex, little-endian)                   |
+| nbits           | Encoded network difficulty target (4-byte hex, as in block header)  |
+| ntime           | Current network time (4-byte hex, little-endian)                    |
+| clean_jobs      | Boolean - if true, miner must discard current work immediately      |
++-----------------+---------------------------------------------------------------------+
+```
 
 ### Block Header Construction
 

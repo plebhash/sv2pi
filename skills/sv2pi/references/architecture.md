@@ -123,25 +123,33 @@ SV1→SV2 Translation Proxy. It:
 
 ## Default Ports
 
-| Role | Port | Protocol | Direction |
-|---|---|---|---|
-| sv2_tp | 8442 | SV2 Template Distribution (Noise) | Downstream |
-| pool_sv2 | 3333 | SV2 Mining Protocol | Downstream |
-| pool_sv2 | 3334 | SV2 Job Declaration | Downstream |
-| pool_sv2 | 9090 | HTTP Monitoring | Internal |
-| jd_client | 34265 | SV2 Mining Protocol | Downstream |
-| jd_client | 9091 | HTTP Monitoring | Internal |
-| translator | 34255 | SV1 JSON-RPC | Downstream |
-| translator | 9092 | HTTP Monitoring | Internal |
+```
++------------+-------+------------------------------------+-----------+
+| Role       | Port  | Protocol                           | Direction |
++------------+-------+------------------------------------+-----------+
+| sv2_tp     | 8442  | SV2 Template Distribution (Noise)  | Downstream|
+| pool_sv2   | 3333  | SV2 Mining Protocol                | Downstream|
+| pool_sv2   | 3334  | SV2 Job Declaration                | Downstream|
+| pool_sv2   | 9090  | HTTP Monitoring                    | Internal  |
+| jd_client  | 34265 | SV2 Mining Protocol                | Downstream|
+| jd_client  | 9091  | HTTP Monitoring                    | Internal  |
+| translator | 34255 | SV1 JSON-RPC                       | Downstream|
+| translator | 9092  | HTTP Monitoring                    | Internal  |
++------------+-------+------------------------------------+-----------+
+```
 
 ### SV2 Template Provider Ports Per Network
 
-| Network | sv2-tp Port |
-|---|---|
-| mainnet | 8442 |
-| testnet4 | 48442 |
-| signet | 38442 |
-| regtest | 18447 |
+```
++----------+-------------+
+| Network  | sv2-tp Port |
++----------+-------------+
+| mainnet  | 8442        |
+| testnet4 | 48442       |
+| signet   | 38442       |
+| regtest  | 18447       |
++----------+-------------+
+```
 
 ## Connection Requirements
 
