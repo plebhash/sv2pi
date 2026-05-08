@@ -130,3 +130,137 @@ If `$HOME/vault/README.md` or a deployment/intervention page contains a permanen
 ### Quartz homepage template
 
 The vault may contain a root `index.md` for Quartz publishing. The canonical creation template lives in `{baseDir}/domains/quartz.md` under `Step Q3 — Ensure root index.md` and must remain verbatim.
+
+---
+
+## Daily Vault Consolidation
+
+Once per day, the agent performs a comprehensive vault analysis and consolidation using the **ADMIN_MODEL** (`gpt-5.3-codex` via PPQ). This is a high-impact persistent-memory operation — the consolidation runs with the strongest available model because it modifies the vault's durable knowledge.
+
+### Why consolidation exists
+
+Different agent sessions (CLI, Discord/Picord, automated timers) may introduce competing or fragmented documentation patterns. Over time, this produces:
+
+- **Redundant intervention notes** — multiple notes documenting the same event from different sessions.
+- **Drifted deployment pages** — deployment pages that no longer match live container state.
+- **Stale cross-references** — wikilinks pointing to renamed or archived pages.
+- **Implicit knowledge fragmentation** — related information scattered across interventions, deployments, and wiki pages without synthesis.
+
+Consolidation is the deliberate, safety-guarded process of detecting and resolving these issues without losing the audit trail.
+
+### Trigger
+
+Consolidation runs once every 24 hours. Two trigger paths:
+
+1. **Scheduled trigger (primary):** A daily systemd timer at a low-activity hour.
+2. **Session-start check (secondary):** On any new agent session, check whether >24h has elapsed since the last recorded consolidation. If so, ask the operator whether to run consolidation now or defer to the scheduled trigger.
+
+### Pre-flight checklist
+
+Before any consolidation work, the agent MUST:
+
+1. **Read binding directives:** `$HOME/vault/README.md` — these are immutable guardrails.
+2. **Read current topology:** `$HOME/vault/deployments/overview.md`.
+3. **Validate live state:** `docker ps -a` for all sv2pi containers; note any drift between vault and live state.
+4. **Inventory recent pages:** List all files under `$HOME/vault/interventions/` and `$HOME/vault/incidents/` modified in the last 7 days.
+5. **Run health scan:** `wiki_lint` to detect orphans, missing pages, contradictions, and gaps.
+6. **Read the last consolidation report:** `$HOME/vault/analyses/consolidation-*.md` (most recent) to understand what was done last time and what was flagged for follow-up.
+
+### Analysis phase
+
+Read every intervention note from the past 7 days. For each note, classify it:
+
+| Classification | Definition | Action |
+|---|---|---|
+| **Standalone event** | A single, non-overlapping incident or intervention | Keep as-is; add cross-references |
+| **Duplicate** | Same event documented in multiple notes from different sessions | Merge into one consolidated note; move originals to `archive/` |
+| **Fragment** | Partial documentation of a multi-step event, completed across multiple notes | Merge fragments into one coherent narrative; move originals to `archive/` |
+| **Stale** | Documents a transient state that has since changed (e.g., "restarted X" when X was later rebuilt) | Annotate with dated note linking to the newer state; do NOT delete |
+| **Policy/Operational** | Contains a binding directive, access rule, or permanent policy change | ALWAYS preserve verbatim; ensure it's reflected in README.md if global |
+
+Identify cross-cutting themes across interventions:
+- Are there recurring diagnostic patterns? (e.g., "IPC socket not found" appearing in multiple incidents)
+- Are there undocumented deployment changes? (e.g., interventions that describe config changes not reflected in deployment pages)
+- Are there gaps? (e.g., deployment page for a running container is missing)
+
+### Consolidation phase — SAFETY-CRITICAL RULES
+
+#### NEVER
+
+- **Delete or alter binding operator directives** from `README.md` or any page marked as a permanent directive.
+- **Delete or alter permanent deployment policies** (e.g., the no-JDC directive, translator topology, model-routing policy, access-policy boundaries).
+- **Collapse distinct incidents** into a single page. Different dates and root causes must remain separate.
+- **Remove dated records.** Dates are the audit trail. Even merged originals go to `archive/`, never to `/dev/null`.
+- **Invent facts** not sourced from vault pages, live probes, or container logs.
+- **Change** model-routing policy, access policy, authority boundaries, or skill conventions during consolidation.
+- **Compress away** security-sensitive information (API key locations, token paths, config paths) — these are operational references, not duplication.
+- **Introduce hallucinations.** Every claim in a consolidation note must cite a source page or live probe result.
+
+#### ALWAYS
+
+- **Merge duplicates and fragments:** When multiple intervention notes document the same event:
+  1. Create a single consolidated note with filename `YYYY-MM-DD-<topic>-CONSOLIDATED.md` in `$HOME/vault/interventions/`.
+  2. The consolidated note must cite all original notes it subsumes.
+  3. Create `$HOME/vault/interventions/archive/` if it doesn't exist.
+  4. Move originals into `archive/` — **never delete them.**
+  
+- **Update deployment pages for drift:** When live state (`docker ps -a`) differs from a deployment page:
+  1. Append a dated update section at the bottom of the deployment page.
+  2. Format: `### Update YYYY-MM-DD` followed by the observed drift and any context.
+  3. Never overwrite the page's history — the full deployment timeline must be preserved.
+
+- **Add cross-references:** Every related page should link to its neighbors via `[[wikilinks]]`.
+
+- **Create synthesis pages for cross-cutting themes:** If a pattern appears across 3+ interventions/incidents, create a synthesis page at `$HOME/vault/wiki/syntheses/<topic>.md` via `wiki_ensure_page`.
+
+- **Flag anything uncertain:** If two pages contradict each other, or a claim can't be verified, add a visible `⚠️ HUMAN REVIEW NEEDED` marker and describe exactly what's uncertain.
+
+### Post-consolidation
+
+1. **Write consolidation report:** Create `$HOME/vault/analyses/consolidation-YYYY-MM-DD.md` (use `wiki_ensure_page(type="analysis", title="consolidation-YYYY-MM-DD")`). The report must include:
+   - Timestamp and model used.
+   - Pre-flight state summary (vault vs. live state).
+   - Pages merged (with before/after filenames).
+   - Deployment pages updated (with drift details).
+   - New synthesis pages created.
+   - Issues flagged for human review.
+   - Open follow-up items for next consolidation.
+
+2. **Rebuild metadata:** `wiki_rebuild_meta`.
+
+3. **Verify health:** `wiki_lint` and confirm zero new orphans. If orphans remain, resolve them.
+
+4. **Log the event:** `wiki_log_event(kind="consolidation", details={...})` with summary counts.
+
+### Scheduling mechanism
+
+The daily timer invokes the consolidation via the ADMIN_MODEL path. The service file:
+
+```ini
+# ~/.config/systemd/user/sv2pi-vault-consolidation.service
+[Unit]
+Description=Daily sv2pi vault consolidation (ADMIN_MODEL)
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.pi/agent/git/github.com/plebhash/sv2pi/skills/sv2pi/scripts/trigger-vault-consolidation.sh
+StandardOutput=journal
+StandardError=journal
+```
+
+```ini
+# ~/.config/systemd/user/sv2pi-vault-consolidation.timer
+[Unit]
+Description=Daily sv2pi vault consolidation trigger
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=1800
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+The trigger script writes a structured prompt file for the next agent session to pick up, or invokes `pi` directly with the consolidation prompt. The agent should detect this trigger on next session start and run the consolidation workflow.

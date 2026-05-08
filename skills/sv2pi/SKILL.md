@@ -55,7 +55,7 @@ Use all four sources together. The vault gives durable cross-session context and
 | Deploy or diagnose Translator Proxy | `read {baseDir}/domains/translator.md` |
 | Deploy or diagnose Sv2 CPU Miner | `read {baseDir}/domains/sv2-cpu-miner.md` |
 | Deploy or diagnose minerd SV1 load | `read {baseDir}/domains/minerd.md` |
-| Health diagnosis, crash investigation, topology questions, persistent memory, or explicit vault queries | `read {baseDir}/domains/vault.md` |
+| Health diagnosis, crash investigation, topology questions, persistent memory, explicit vault queries, or vault consolidation | `read {baseDir}/domains/vault.md` |
 | Serve, publish, show, expose, or repair the vault web UI | `read {baseDir}/domains/quartz.md` |
 | Check PPQ credit balance or model-credit failures | `read {baseDir}/domains/ppq-monitor.md` |
 | Enable or diagnose automated pool hashrate monitoring | `read {baseDir}/domains/pool-monitor.md` |
