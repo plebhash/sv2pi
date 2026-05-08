@@ -112,6 +112,7 @@ Operational meaning:
 - Guild access is restricted to the Stratum V2 guild and the private `⛏️sv2bot🤖` channel.
 - Access is based on private-channel membership/permission, not per-user allowlisting.
 - Guild non-thread messages must explicitly mention `@sv2bot` before Picord starts a session/thread.
+- For long-term stability, new-session bootstrap should be treated as **direct bot mention only** (`<@1501137386631860254>` / `<@!1501137386631860254>`). Role mentions (`<@&...>`) are intentionally ignored for thread bootstrap.
 - Ambient messages in the project channel are ignored.
 - Messages inside existing Picord session threads continue without repeated mention.
 - Allowed guild-channel messages mentioning `@sv2bot` default to `sv2pi` operations context unless the user clearly asks for unrelated general Pi/coding work.
@@ -241,9 +242,10 @@ When bootstrapping a new Discord deployment or re-adding the bot:
    - Confirm `discord-port connected as sv2bot#1245 (full mode)`.
 
 6. **Verify from Discord**
-   - In the private channel, start a session with an explicit `@sv2bot` mention.
+   - In the private channel, start a session with a **direct** `@sv2bot` user mention (not a role mention).
    - In the session thread, check a low-risk operational query.
    - Confirm tools execute; literal `<tool_call>{...}</tool_call>` in Discord is a regression.
+   - If the first bot reply is delayed, wait ~60s before assuming failure; prompt execution can still complete after a typing-indicator stall.
 
 ---
 
@@ -540,11 +542,12 @@ Fix: server admin must explicitly grant `View Channel` and normal message/thread
 Possible causes:
 
 - message did not mention `@sv2bot` and is correctly ignored;
+- message used a role mention (`<@&...>`) instead of a direct bot-user mention, and direct-only bootstrap is enabled;
 - `hostChannelId` is incorrectly set to the project channel;
 - Picord is not running or not in `full mode`;
 - access allowlists do not include the guild/channel.
 
-Fix: verify config, runtime, and mention-gating behavior.
+Fix: verify config, runtime, and mention-gating behavior. For bootstrap tests, always use direct `<@1501137386631860254>` mention.
 
 ### Literal `<tool_call>{...}</tool_call>` appears in Discord
 
@@ -557,6 +560,55 @@ Fix: restore/port `src/pi-session.ts` tool allowlist and `baseToolsOverride` / `
 Cause: long-running Picord process did not inherit current Docker group membership.
 
 Fix: restart Picord under `tmux -L picord-docker ...` so the process inherits Docker group access.
+
+### New thread appears but bot reply is delayed or missing
+
+Symptoms:
+
+- A new thread is created from the mention, sometimes with only Discord system message (`type: 21`) initially.
+- Bot may show `_thinking…_` later, then eventually produce a final answer.
+
+Observed trigger pattern:
+
+- Discord typing-indicator API (`sendTyping`) can stall/timeout and delay visible feedback.
+- This does not necessarily mean `respond()` failed.
+
+Stability guidance:
+
+- Do not block response flow on `sendTyping`; treat typing as best-effort.
+- Keep direct-mention bootstrap and avoid role-mention bootstrap for new sessions.
+- Wait up to ~60 seconds before declaring failure on first-thread reply.
+
+Targeted diagnostics:
+
+```bash
+# Runtime status
+ tmux -L picord-docker capture-pane -t picord -p -S -200
+
+# Verify latest channel/thread state (system message vs _thinking…_ vs final answer)
+ cd /home/sv2bot/sv2bot-discord
+ set -a && source /home/sv2bot/.picord/.env && set +a
+ node --input-type=module - <<'NODE'
+import { Client, GatewayIntentBits } from 'discord.js';
+const token=process.env.PICORD_DISCORD_TOKEN;
+const channelId='1501133804058710116';
+const client=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMessages]});
+client.once('ready', async () => {
+  const ch=await client.channels.fetch(channelId);
+  const threads=await ch.threads.fetchActive();
+  const recent=[...threads.threads.values()].sort((a,b)=>b.createdTimestamp-a.createdTimestamp).slice(0,2);
+  for (const t of recent) {
+    console.log(`thread ${t.id} ${t.name}`);
+    const msgs=await t.messages.fetch({limit:10});
+    for (const m of [...msgs.values()].sort((a,b)=>a.createdTimestamp-b.createdTimestamp)) {
+      console.log(new Date(m.createdTimestamp).toISOString(), m.author.tag, 'type', m.type, JSON.stringify(m.content));
+    }
+  }
+  await client.destroy();
+});
+client.login(token);
+NODE
+```
 
 ### PPQ multi-auth failure
 
