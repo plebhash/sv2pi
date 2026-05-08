@@ -9,6 +9,159 @@ PLOTS_DIR="$MONITOR_DIR/plots"
 HASHLOG_FILE="$MONITOR_DIR/hashrate.jsonl"
 STATUS_FILE="$MONITOR_DIR/latest.md"
 INDEX_FILE="$MONITOR_DIR/index.md"
+DISCORD_CHANNEL_ID="${SV2PI_POOL_MONITOR_DISCORD_CHANNEL_ID:-1501133804058710116}"
+PICORD_ENV_FILE="${SV2PI_PICORD_ENV:-/home/sv2bot/.picord/.env}"
+DISCORD_POST_ENABLED="${SV2PI_POOL_MONITOR_DISCORD:-1}"
+
+format_hashrate() {
+    local rate="$1"
+    python3 - "$rate" <<'PY'
+import sys
+rate = float(sys.argv[1] or 0)
+for scale, unit in [(10**18, "EH/s"), (10**15, "PH/s"), (10**12, "TH/s"), (10**9, "GH/s"), (10**6, "MH/s"), (10**3, "kH/s")]:
+    if rate >= scale:
+        print(f"{rate / scale:.3g} {unit}")
+        break
+else:
+    print(f"{rate:.0f} H/s")
+PY
+}
+
+format_duration() {
+    local seconds="${1:-0}"
+    local days=$((seconds / 86400))
+    local hours=$(((seconds % 86400) / 3600))
+    local minutes=$(((seconds % 3600) / 60))
+    if [ "$days" -gt 0 ]; then
+        printf '%sd %sh %sm' "$days" "$hours" "$minutes"
+    elif [ "$hours" -gt 0 ]; then
+        printf '%sh %sm' "$hours" "$minutes"
+    else
+        printf '%sm' "$minutes"
+    fi
+}
+
+build_discord_client_summary() {
+    local client_lines=""
+    local idle_count=0
+    local active_count=0
+    local max_active="${SV2PI_POOL_MONITOR_MAX_ACTIVE_CLIENTS:-8}"
+    local max_channels_per_client="${SV2PI_POOL_MONITOR_MAX_CHANNELS_PER_CLIENT:-6}"
+
+    while IFS='|' read -r client_id ext_count std_count client_hr; do
+        [ -n "$client_id" ] || continue
+        local total_ch=$((ext_count + std_count))
+        if [ "$total_ch" -eq 0 ]; then
+            idle_count=$((idle_count + 1))
+            continue
+        fi
+        active_count=$((active_count + 1))
+        if [ "$active_count" -gt "$max_active" ]; then
+            continue
+        fi
+
+        local client_hr_fmt channels channel_lines channel_count
+        client_hr_fmt=$(format_hashrate "$client_hr")
+        client_lines="${client_lines}
+• Client \`${client_id}\`: \`${total_ch}\` ch (\`${ext_count}\` ext, \`${std_count}\` std) | \`${client_hr_fmt%% *}\` ${client_hr_fmt#* }"
+
+        channels=$(curl -s "${MAINNET_API}/clients/${client_id}/channels" 2>/dev/null || echo '{}')
+        channel_count=0
+        channel_lines=$(echo "$channels" | jq -r --argjson max "$max_channels_per_client" '
+            ([.extended_channels[]? | {kind:"ext", id:.channel_id, hr:(.nominal_hashrate // 0), shares:(.shares_accepted // null), best:(.best_diff // null), user:(.user_identity // "")}] +
+             [.standard_channels[]? | {kind:"std", id:.channel_id, hr:(.nominal_hashrate // 0), shares:(.shares_accepted // null), best:(.best_diff // null), user:(.user_identity // "")}])[:$max][] |
+            [.id, .kind, .hr, (.shares // ""), (.best // ""), .user] | @tsv
+        ' | while IFS=$'\t' read -r ch_id ch_kind ch_hr ch_shares ch_best ch_user; do
+            ch_hr_fmt=$(format_hashrate "$ch_hr")
+            line="      ├─ Ch \`${ch_id}\` (${ch_kind}): \`${ch_hr_fmt%% *}\` ${ch_hr_fmt#* }"
+            if [ -n "$ch_shares" ]; then
+                line="${line} | shares \`${ch_shares}\`"
+            fi
+            if [ -n "$ch_best" ]; then
+                ch_best_int=$(printf '%.0f' "$ch_best")
+                line="${line} | best diff \`${ch_best_int}\`"
+            fi
+            if [ -n "$ch_user" ]; then
+                line="${line} | \`${ch_user}\`"
+            fi
+            printf '%s\n' "$line"
+        done)
+        if [ -n "$channel_lines" ]; then
+            client_lines="${client_lines}
+${channel_lines}"
+        fi
+        channel_count=$(echo "$channels" | jq -r '((.total_extended // 0) + (.total_standard // 0))')
+        if [ "$channel_count" -gt "$max_channels_per_client" ]; then
+            client_lines="${client_lines}
+      └─ … $((channel_count - max_channels_per_client)) more channels"
+        fi
+    done < <(echo "$POOL_CLIENTS" | jq -r '.items[]? | "\(.client_id)|\(.extended_channels_count // 0)|\(.standard_channels_count // 0)|\(.total_hashrate // 0)"')
+
+    if [ "$active_count" -gt "$max_active" ]; then
+        client_lines="${client_lines}
+• … $((active_count - max_active)) more active clients"
+    fi
+    if [ "$idle_count" -gt 0 ]; then
+        client_lines="${client_lines}
+• (\`${idle_count}\` idle clients with \`0\` channels)"
+    fi
+
+    printf '%s' "$client_lines"
+}
+
+post_discord_summary() {
+    [ "$DISCORD_POST_ENABLED" = "1" ] || return 0
+    [ -s "$PICORD_ENV_FILE" ] || return 0
+    [ -s "$VAULT/pool-hashrate.png" ] || return 0
+    command -v curl >/dev/null 2>&1 || return 0
+    command -v jq >/dev/null 2>&1 || return 0
+
+    local token=""
+    token=$(python3 - "$PICORD_ENV_FILE" <<'PY'
+import sys
+from pathlib import Path
+for line in Path(sys.argv[1]).read_text().splitlines():
+    line = line.strip()
+    if not line or line.startswith('#') or '=' not in line:
+        continue
+    key, value = line.split('=', 1)
+    if key == 'PICORD_DISCORD_TOKEN':
+        print(value.strip().strip('"').strip("'"))
+        break
+PY
+)
+    [ -n "$token" ] || return 0
+
+    local pretty_hashrate uptime_pretty client_summary content payload tmp_response http_code
+    pretty_hashrate=$(format_hashrate "$CLIENTS_HR")
+    uptime_pretty=$(format_duration "$UPTIME")
+    client_summary=$(build_discord_client_summary)
+    content=$(cat <<MSGEOF
+**📊 SRI Pool Stats 🤖⛏️**
+
+**Uptime:** \`$uptime_pretty\`
+**Clients:** \`$CLIENTS_COUNT\`
+**Channels:** \`$CHANNELS_TOTAL\` (\`$CHANNELS_EXT\` ext, \`$CHANNELS_STD\` std)
+**Hashrate:** \`${pretty_hashrate%% *}\` ${pretty_hashrate#* }${client_summary}
+
+MSGEOF
+)
+    if [ "${#content}" -gt 1900 ]; then
+        content=$(printf '%s\n\n%s' "$(echo "$content" | head -c 1850)" "… truncated; see vault dashboard for full snapshots.")
+    fi
+    payload=$(jq -nc --arg content "$content" '{content:$content, allowed_mentions:{parse:[]}}')
+    tmp_response=$(mktemp)
+    http_code=$(curl -sS -o "$tmp_response" -w '%{http_code}' \
+        -H "Authorization: Bot ${token}" \
+        -F "payload_json=${payload}" \
+        -F "files[0]=@${VAULT}/pool-hashrate.png;type=image/png" \
+        "https://discord.com/api/v10/channels/${DISCORD_CHANNEL_ID}/messages" 2>/tmp/sv2pi-discord-post.err || true)
+    if [ "$http_code" != "200" ] && [ "$http_code" != "201" ]; then
+        printf 'Discord post failed with HTTP %s\n' "$http_code" > /tmp/sv2pi-discord-post.log
+        cat "$tmp_response" >> /tmp/sv2pi-discord-post.log 2>/dev/null || true
+    fi
+    rm -f "$tmp_response"
+}
 
 mkdir -p "$SNAPSHOT_DIR" "$PLOTS_DIR"
 
@@ -21,6 +174,8 @@ POOL_GLOBAL=$(curl -s "${MAINNET_API}/global" 2>/dev/null || echo '{}')
 CLIENTS_COUNT=$(echo "$POOL_GLOBAL" | jq -r '.sv2_clients.total_clients // 0')
 CLIENTS_HR=$(echo "$POOL_GLOBAL" | jq -r '.sv2_clients.total_hashrate // 0')
 CHANNELS_TOTAL=$(echo "$POOL_GLOBAL" | jq -r '.sv2_clients.total_channels // 0')
+CHANNELS_EXT=$(echo "$POOL_GLOBAL" | jq -r '.sv2_clients.extended_channels // 0')
+CHANNELS_STD=$(echo "$POOL_GLOBAL" | jq -r '.sv2_clients.standard_channels // 0')
 UPTIME=$(echo "$POOL_GLOBAL" | jq -r '.uptime_secs // 0')
 CLIENTS_LIMIT=$((CLIENTS_COUNT > 0 ? CLIENTS_COUNT : 1))
 
@@ -138,5 +293,7 @@ $RECENT_ROWS
 - JSONL history in vault: \`pool-monitor/hashrate.jsonl\`
 - Raw snapshots in vault: \`pool-monitor/snapshots/\` ($SNAPSHOT_COUNT JSON files)
 INDEXEOF
+
+post_discord_summary
 
 printf '%s\n' "$ENTRY"

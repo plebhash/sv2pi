@@ -42,6 +42,26 @@ The generated `index.md` is the primary operator-facing page and should include:
 - Embedded latest chart (raw HTML img tag)
 - Recent readings table (newest N entries first)
 
+### Discord report style
+
+When `pool-monitor.sh` posts automated Discord reports, keep the message compact, readable, and Discord-native. Operator feedback established this report-template style:
+
+- Header: `📊 SRI Pool Stats 🤖⛏️`
+- Do not include decorative environment separator lines such as `Mainnet (port 3333)`.
+- Do not include implementation/status footer text such as `Auto-report • no AI tokens`.
+- Do not include a visible attachment-label line such as `pool-hashrate.png attached`; attach the PNG silently.
+- Use bold labels for top-level fields and inline-code formatting for values:
+  - `**Uptime:** \`2d 16h 38m\``
+  - `**Clients:** \`3\``
+  - `**Channels:** \`1\` (\`1\` ext, \`0\` std)`
+  - `**Hashrate:** \`6.75\` TH/s`
+- For client/channel detail rows, wrap IDs, counts, numeric values, and identities in inline code while leaving units and labels readable:
+  - `• Client \`109\`: \`1\` ch (\`1\` ext, \`0\` std) | \`6.75\` TH/s`
+  - `      ├─ Ch \`2\` (ext): \`6.75\` TH/s | shares \`12772\` | best diff \`482574091\` | \`BadAssBassDad.translator-proxy\``
+  - `• (\`2\` idle clients with \`0\` channels)`
+- Keep markdown simple for Discord rendering: bold labels, bullets, indentation, inline code; avoid tables.
+- The visual pattern is: labels and units are plain text, data values are inline-code. This makes live metrics scan like structured data without turning the report into a table.
+
 ### Operator deployment
 
 The scripts are designed to be invoked periodically via a systemd timer. Recommended timer config:
