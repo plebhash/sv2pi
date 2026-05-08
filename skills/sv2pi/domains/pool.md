@@ -63,6 +63,26 @@ docker stop sv2-cpu-miner && docker rm sv2-cpu-miner
 
 
 
+## Monitoring Data Interpretation
+
+When the pool's HTTP API returns unusual metric values, **always read metrics in combination — never in isolation.**
+
+The pool monitoring API (port 9090) exposes per-sample `hashrate`, `clients`, and `channels` counts. An anomalous reading in any one field must be cross-checked against the others before drawing conclusions.
+
+### Hashrate spike checklist
+
+When aggregate hashrate spikes significantly above baseline:
+
+1. **Check client and channel counts in the same sample.** If `clients +1` and `channels +N` → a new miner connected. This is the first hypothesis, not a data artifact.
+2. **Check whether the high-hashrate client ID is new.** If `client_id` was not present in prior samples, it is an external miner that just connected — not an existing client reporting garbage.
+3. **Assess plausibility before assuming overflow.** Real overflow/garbage values look like sentinel values (`2^64`, negative, `NaN`, exact powers of two). A round PH/s or EH/s figure from a newly-connected client is almost certainly real hashpower.
+4. **Rented hashpower pattern.** A single new client at high hashrate that disappears after 1–2 samples is consistent with short-lease rented hashpower (e.g. NiceHash, MiningRigRentals). This is expected and welcome behavior for a public SRI pool.
+5. **Only after ruling out the above** — if client/channel counts are stable and the client ID is known — investigate whether the reporting is anomalous.
+
+The general principle applies to any metric: **interpret the full correlated set of signals before concluding any single value is an artifact.**
+
+---
+
 ## Crash Diagnostics
 
 Role evidence: read `~/.cache/sv2pi/sv2-apps-$DEPLOY_TAG/pool-apps/pool/src/` before grepping logs.
