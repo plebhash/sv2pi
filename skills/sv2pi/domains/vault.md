@@ -28,15 +28,19 @@ After any read, re-validate live state with `docker ps -a` and targeted probes b
 
 ### Concrete update triggers
 
-| Event | What to write/update |
-|---|---|
-| First deployment on this VPS | Initialize the vault (see below), then proceed |
-| PPQ balance reading (hourly) | `$HOME/vault/ppq-readings/readings.csv` — append timestamp,balance line |
-| Role deployed successfully | `$HOME/vault/deployment/<role>.md` — tag, config summary, upstream/downstream addresses |
-| Role stopped or removed | `$HOME/vault/deployment/<role>.md` — note decommissioned state |
-| Crash or abnormal exit | `$HOME/vault/incidents/<YYYY-MM-DD>-<role>.md` — exit code, tail of logs, suspected cause |
-| Operator gives a permanent directive | `$HOME/vault/README.md` — verbatim quote, dated |
-| Intervention (fix, restart, config change) | `$HOME/vault/interventions/<YYYY-MM-DD>-<description>.md` |
+```
++---------------------------------------------+-----------------------------------------------------------------------------------+
+| Event                                       | What to write/update                                                              |
++---------------------------------------------+-----------------------------------------------------------------------------------+
+| First deployment on this VPS                | Initialize the vault (see below), then proceed                                    |
+| PPQ balance reading (hourly)                | $HOME/vault/ppq-readings/readings.csv - append timestamp,balance line             |
+| Role deployed successfully                  | $HOME/vault/deployment/<role>.md - tag, config summary, addresses                 |
+| Role stopped or removed                     | $HOME/vault/deployment/<role>.md - note decommissioned state                      |
+| Crash or abnormal exit                      | $HOME/vault/incidents/<YYYY-MM-DD>-<role>.md - exit code, logs, suspected cause   |
+| Operator gives a permanent directive        | $HOME/vault/README.md - verbatim quote, dated                                     |
+| Intervention (fix, restart, config change)  | $HOME/vault/interventions/<YYYY-MM-DD>-<description>.md                           |
++---------------------------------------------+-----------------------------------------------------------------------------------+
+```
 
 Entries must be concise, dated, and factual. Use normal file tools (`read`, `edit`, `write`).
 
@@ -192,13 +196,18 @@ Before any consolidation work, the agent MUST:
 
 Read every intervention note from the past 7 days. For each note, classify it:
 
-| Classification | Definition | Action |
-|---|---|---|
-| **Standalone event** | A single, non-overlapping incident or intervention | Keep as-is; add cross-references |
-| **Duplicate** | Same event documented in multiple notes from different sessions | Merge into one consolidated note; move originals to `archive/` |
-| **Fragment** | Partial documentation of a multi-step event, completed across multiple notes | Merge fragments into one coherent narrative; move originals to `archive/` |
-| **Stale** | Documents a transient state that has since changed (e.g., "restarted X" when X was later rebuilt) | Annotate with dated note linking to the newer state; do NOT delete |
-| **Policy/Operational** | Contains a binding directive, access rule, or permanent policy change | ALWAYS preserve verbatim; ensure it's reflected in README.md if global |
+```
++---------------------+------------------------------------------------------+------------------------------------------------------+
+| Classification      | Definition                                           | Action                                               |
++---------------------+------------------------------------------------------+------------------------------------------------------+
+| Standalone event    | Single, non-overlapping incident or intervention     | Keep as-is; add cross-references                     |
+| Duplicate           | Same event in multiple notes from different sessions | Merge into one note; move originals to archive/      |
+| Fragment            | Partial doc of multi-step event across sessions      | Merge into one narrative; move originals to archive/ |
+| Stale               | Documents transient state that has since changed     | Annotate with dated note linking to newer state;     |
+|                     |                                                      | do NOT delete                                        |
+| Policy/Operational  | Binding directive, access rule, permanent policy     | ALWAYS preserve verbatim; reflect in README.md       |
++---------------------+------------------------------------------------------+------------------------------------------------------+
+```
 
 Identify cross-cutting themes across interventions:
 - Are there recurring diagnostic patterns? (e.g., "IPC socket not found" appearing in multiple incidents)

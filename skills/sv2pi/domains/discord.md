@@ -32,17 +32,21 @@ After any material change, update the vault with a concise dated intervention no
 
 Canonical deployment target:
 
-| Field | Value |
-|---|---|
-| Discord guild/server | `Stratum V2` / `950687892169195530` |
-| Private channel | `⛏️sv2bot🤖` / `1501133804058710116` |
-| Bot tag | `sv2bot#1245` |
-| Bot application/client ID | `1501137386631860254` |
-| Bot role observed during setup | `1501838223301939281` |
-| Local runtime config | `/home/sv2bot/.picord/picord.config.json` |
-| Local runtime env | `/home/sv2bot/.picord/.env` |
-| Launcher | `/home/sv2bot/.picord/run-picord.sh` |
-| Workspace root | `/home/sv2bot` |
+```
++--------------------------------+------------------------------------------+
+| Field                          | Value                                    |
++--------------------------------+------------------------------------------+
+| Discord guild/server           | Stratum V2 / 950687892169195530          |
+| Private channel                | sv2bot / 1501133804058710116             |
+| Bot tag                        | sv2bot#1245                              |
+| Bot application/client ID      | 1501137386631860254                      |
+| Bot role (observed at setup)   | 1501838223301939281                      |
+| Local runtime config           | /home/sv2bot/.picord/picord.config.json  |
+| Local runtime env              | /home/sv2bot/.picord/.env                |
+| Launcher                       | /home/sv2bot/.picord/run-picord.sh       |
+| Workspace root                 | /home/sv2bot                             |
++--------------------------------+------------------------------------------+
+```
 
 Security: never print, echo, commit, or write the Discord bot token to the vault. The token lives in `/home/sv2bot/.picord/.env`; source it locally only when needed.
 
@@ -66,10 +70,14 @@ When in doubt, pause and ask for admin-human confirmation before making policy/c
 
 Discord-facing `sv2pi` deployments should route prompts by authority and operational risk, using symbolic model slots rather than hard-coding a single vendor/model into the policy:
 
-| Slot | Purpose |
-|---|---|
-| `ADMIN_MODEL` | Critical, escalation, or admin-authority prompts |
-| `DEFAULT_MODEL` | Day-to-day, routine, or unprivileged prompts |
+```
++---------------+--------------------------------------------------+
+| Slot          | Purpose                                          |
++---------------+--------------------------------------------------+
+| ADMIN_MODEL   | Critical, escalation, or admin-authority prompts |
+| DEFAULT_MODEL | Day-to-day, routine, or unprivileged prompts     |
++---------------+--------------------------------------------------+
+```
 
 Routing rules:
 
@@ -459,7 +467,16 @@ For Discord-facing answers:
 
 - Be concise unless the user asks for detail.
 - Prefer bullets or short paragraphs.
-- Avoid Markdown tables; Discord renders them poorly.
+- Avoid Markdown tables in responses; Discord renders them poorly. When tabular data must be shown, use an ASCII box table inside a fenced code block instead:
+  ````
+  ```
+  +----------+--------------------+
+  | Column A | Column B           |
+  +----------+--------------------+
+  | value    | description        |
+  +----------+--------------------+
+  ```
+  ````
 - Avoid model/thinking/context metadata footers.
 - Avoid noisy tool/progress timelines in the visible Discord response.
 - Use operationally useful summaries with clear next steps.

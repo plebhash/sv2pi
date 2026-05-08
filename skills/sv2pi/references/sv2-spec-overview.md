@@ -6,11 +6,15 @@ Source: [stratum-mining/sv2-spec](https://github.com/stratum-mining/sv2-spec)
 
 SV2 defines three sub-protocols layered on top of a common binary framing format:
 
-| Sub-Protocol | Purpose | Participants |
-|---|---|---|
-| **Mining Protocol** | Job distribution, share submission, difficulty control | Mining Device ↔ Pool / Proxy |
-| **Job Declaration Protocol** | Custom block template declaration by miners | JDC ↔ JDS |
-| **Template Distribution Protocol** | Block template data retrieval | JDC ↔ Template Provider, Pool ↔ Template Provider |
+```
++--------------------------------+------------------------------------------------+------------------------------------------------+
+| Sub-Protocol                   | Purpose                                        | Participants                                   |
++--------------------------------+------------------------------------------------+------------------------------------------------+
+| Mining Protocol                | Job distribution, share submission, vardiff    | Mining Device <-> Pool / Proxy                 |
+| Job Declaration Protocol       | Custom block template declaration by miners    | JDC <-> JDS                                    |
+| Template Distribution Protocol | Block template data retrieval                  | JDC <-> TP, Pool <-> TP                        |
++--------------------------------+------------------------------------------------+------------------------------------------------+
+```
 
 All messages use binary encoding (not JSON), significantly reducing bandwidth.
 

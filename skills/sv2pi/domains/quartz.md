@@ -10,10 +10,15 @@ Quartz 4 is an open-source static site generator for Obsidian-flavored markdown 
 
 #### Terminology: serve vs publish
 
-| Term | Meaning | Agent behavior |
-|---|---|---|
-| **serve raw vault** | Browse markdown files/directories as plain text | This is **never** the right answer — skip it |
-| **publish vault** 🧠💻 | Build with Quartz and serve the generated HTML (Obsidian Publish style) | Build with `npx quartz build`, serve `quartz/public/` — this is the **only** correct answer |
+```
++------------------+----------------------------------------------+----------------------------------------------+
+| Term             | Meaning                                      | Agent behavior                               |
++------------------+----------------------------------------------+----------------------------------------------+
+| serve raw vault  | Browse markdown files/directories as text    | Never the right answer - skip it             |
+| publish vault    | Build with Quartz, serve generated HTML      | Build with npx quartz build, serve           |
+|                  | (Obsidian Publish style)                     | quartz/public/ - this is the only answer     |
++------------------+----------------------------------------------+----------------------------------------------+
+```
 
 When a user says "serve vault," "publish vault," or "show the brain," they mean **publish vault** — Quartz-generated HTML, not raw markdown. The raw vault is never the intended UX.
 
@@ -53,10 +58,14 @@ wg show 2>/dev/null || true
 
 #### Deployment modes (network interface)
 
-| Mode | Interface | Visibility | When to use |
-|---|---|---|---|
-| `wg0` | WireGuard VPN | Restricted to VPN peers | Day-to-day operations — keep the brain within the trusted VPN 🧠🔒 |
-| `eth0` | Public NIC | Exposed to the WWW | Public transparency or remote access without VPN 🧠🌐 |
+```
++------+---------------+------------------------+----------------------------------------------------+
+| Mode | Interface     | Visibility             | When to use                                        |
++------+---------------+------------------------+----------------------------------------------------+
+| wg0  | WireGuard VPN | Restricted to VPN peers| Day-to-day ops - keep the brain within trusted VPN |
+| eth0 | Public NIC    | Exposed to the WWW     | Public transparency or remote access without VPN   |
++------+---------------+------------------------+----------------------------------------------------+
+```
 
 The default port is **4028**. The agent binds Caddy to the interface IP (not `0.0.0.0`) so the vault is only reachable via that interface.
 
@@ -91,12 +100,17 @@ Read the existing config, then edit these key fields:
 cd ~/quartz
 ```
 
-| Setting | Value | Why |
-|---|---|---|
-| `pageTitle` | `"sv2bot vault 🧠"` 🧠 | Shows in browser tab and site header |
-| `baseUrl` | `"WIREGUARD_IP:4028"` | Must match the WireGuard IP from pre-flight (e.g. `10.0.0.1`) |
-| `ignorePatterns` | `["private", "templates", ".obsidian", ".wiki", "raw", "outputs"]` | Skip extension-owned dirs and internal content; only publish `deployment/`, `interventions/`, `incidents/`, `wiki/`, and `index.md` |
-| `Plugin.CustomOgImages()` | Comment it out | Speeds up builds; OG images are expensive and unnecessary for internal ops |
+```
++------------------------+-----------------------------------------------+----------------------------------------------+
+| Setting                | Value                                         | Why                                          |
++------------------------+-----------------------------------------------+----------------------------------------------+
+| pageTitle              | "sv2bot vault"                                | Shows in browser tab and site header         |
+| baseUrl                | "WIREGUARD_IP:4028"                           | Must match WireGuard IP from pre-flight      |
+| ignorePatterns         | ["private","templates",".obsidian",           | Skip extension dirs; only publish            |
+|                        |  ".wiki","raw","outputs"]                     | deployment/, interventions/, incidents/, etc |
+| Plugin.CustomOgImages()| Comment it out                                | Speeds up builds; OG images unnecessary here |
++------------------------+-----------------------------------------------+----------------------------------------------+
+```
 
 Update `baseUrl` dynamically from the detected WireGuard IP. Update `ignorePatterns` to exclude pi-llm-wiki internal directories.
 
@@ -329,16 +343,20 @@ cd ~/quartz && npx quartz build -d ~/vault -o ~/quartz/public
 
 ##### Summary checklist 🧠✅
 
-| # | Step | Must not skip |
-|---|---|---|
-| Q0 | Pre-flight: read vault README + detect existing infra | ✅ |
-| Q1 | Install/locate Quartz 4 | |
-| Q2 | Configure quartz.config.ts | ✅ |
-| Q3 | Ensure root index.md | ✅ |
-| Q4 | Build static site | |
-| Q5 | Serve with Caddy, WireGuard-bound only | |
-| Q6 | Auto-rebuild path watcher | |
-| Q7 | **Validate** Quartz UI (all 6 checks) | ✅ |
-| Q8 | (Ongoing) manual rebuild on demand | |
+```
++----+------------------------------------------------------+---------------+
+| #  | Step                                                 | Must not skip |
++----+------------------------------------------------------+---------------+
+| Q0 | Pre-flight: read vault README + detect existing infra| yes           |
+| Q1 | Install/locate Quartz 4                              |               |
+| Q2 | Configure quartz.config.ts                           | yes           |
+| Q3 | Ensure root index.md                                 | yes           |
+| Q4 | Build static site                                    |               |
+| Q5 | Serve with Caddy, WireGuard-bound only               |               |
+| Q6 | Auto-rebuild path watcher                            |               |
+| Q7 | Validate Quartz UI (all 6 checks)                    | yes           |
+| Q8 | (Ongoing) manual rebuild on demand                   |               |
++----+------------------------------------------------------+---------------+
+```
 
 Human operators can bookmark the Quartz URL and browse the brain alongside the agent's real-time probes. Think of it as a split-screen console: the agent works the terminal while the human watches the evolving knowledge graph 🧠💻.

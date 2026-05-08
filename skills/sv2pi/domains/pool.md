@@ -25,14 +25,18 @@ bash {baseDir}/scripts/deploy-pool.sh $DEPLOY_TAG $BITCOIN_IPC_PATH
 
 If the user's request is vague (e.g. "deploy a pool"), walk them through each configuration choice from the frozen Docker config template, offering the default value each time. Key parameters:
 
-| Parameter | Default | Ask |
-|---|---|---|
-| `coinbase_reward_script` | `addr(...)` (SRI community wallet) | "What payout address? (default: SRI community wallet)" |
-| `listen_address` | `0.0.0.0:3333` | "Stratum port? (default 3333)" |
-| `JDS listen_address` | `0.0.0.0:3334` | "JDS port? (default 3334, or disable JD support)" |
-| `shares_per_minute` | `6.0` | "Target shares/minute? (default 6)" |
-| `pool_signature` | `SRI Mainnet Pool` | "Pool signature string?" |
-| Authority keypair | hardcoded example | Warn: "Replace with your own keypair for production" |
+```
++------------------------+----------------------------+----------------------------------------------+
+| Parameter              | Default                    | Ask                                          |
++------------------------+----------------------------+----------------------------------------------+
+| coinbase_reward_script | addr(...) (SRI wallet)     | "What payout address? (default: SRI wallet)" |
+| listen_address         | 0.0.0.0:3333               | "Stratum port? (default 3333)"               |
+| JDS listen_address     | 0.0.0.0:3334               | "JDS port? (default 3334, or disable JD)"    |
+| shares_per_minute      | 6.0                        | "Target shares/minute? (default 6)"          |
+| pool_signature         | SRI Mainnet Pool           | "Pool signature string?"                     |
+| Authority keypair      | hardcoded example          | Warn: replace with own keypair for prod      |
++------------------------+----------------------------+----------------------------------------------+
+```
 
 Never ask about ports/values the user already specified. If the user says "use defaults", deploy immediately.
 

@@ -24,16 +24,20 @@ Downloads v2.5.1 from [GitHub releases](https://github.com/stratum-mining/cpumin
 
 ## CLI Quick Reference
 
-| Flag | Meaning |
-|---|---|
-| `-a sha256d` | SHA-256d algorithm (Bitcoin) |
-| `-o stratum+tcp://HOST:PORT` | Upstream Stratum endpoint |
-| `-u USER` | Worker username |
-| `-p PASS` | Worker password |
-| `-O USER:PASS` | Combined credentials |
-| `-t N` | Miner threads (default: auto-detect cores) |
-| `-q` | Suppress per-thread hashmeter |
-| `-P` | Dump protocol-level JSON-RPC messages |
+```
++------------------------------+------------------------------------------+
+| Flag                         | Meaning                                  |
++------------------------------+------------------------------------------+
+| -a sha256d                   | SHA-256d algorithm (Bitcoin)             |
+| -o stratum+tcp://HOST:PORT   | Upstream Stratum endpoint                |
+| -u USER                      | Worker username                          |
+| -p PASS                      | Worker password                          |
+| -O USER:PASS                 | Combined credentials                     |
+| -t N                         | Miner threads (default: auto-detect)     |
+| -q                           | Suppress per-thread hashmeter            |
+| -P                           | Dump protocol-level JSON-RPC messages    |
++------------------------------+------------------------------------------+
+```
 
 Full man page: `minerd --help`
 
@@ -47,10 +51,14 @@ bash {baseDir}/scripts/run-minerd-adhoc.sh <url> <user> <pass> <mode>
 
 **Modes:**
 
-| Mode | Behavior | Expected duration | Match string |
-|---|---|---|---|
-| `handshake` | Connects, completes SV1 handshake, exits | ~3s | `Stratum difficulty set to` |
-| `oneshot` | Connects, completes handshake, submits one share, exits | 5–30s | `accepted:` |
+```
++-----------+--------------------------------------------------+-------------------+---------------------------+
+| Mode      | Behavior                                         | Expected duration | Match string              |
++-----------+--------------------------------------------------+-------------------+---------------------------+
+| handshake | Connects, completes SV1 handshake, exits         | ~3s               | Stratum difficulty set to |
+| oneshot   | Connects, handshake, submits one share, exits    | 5-30s             | accepted:                 |
++-----------+--------------------------------------------------+-------------------+---------------------------+
+```
 
 Both modes timeout after 60s (configurable via `TIMEOUT_SECS`). Returns exit code 0 on success.
 
@@ -71,11 +79,15 @@ bash {baseDir}/scripts/deploy-minerd-sustained.sh <url> <user_prefix> <pass> <mo
 
 **Parameter resolution:**
 
-| Mode | Threads per instance | `-t` flag |
-|---|---|---|
-| `minimal` | 1 | `-t 1` |
-| `full` | Auto-detect cores | (none — minerd auto-detects) |
-| `1.5`, `2.5`, etc. | `ceil(mult × cores)` | `-t N` |
+```
++------------------+----------------------+-----------------------------+
+| Mode             | Threads per instance | -t flag                     |
++------------------+----------------------+-----------------------------+
+| minimal          | 1                    | -t 1                        |
+| full             | Auto-detect cores    | (none - minerd auto-detects)|
+| 1.5, 2.5, etc.   | ceil(mult x cores)   | -t N                        |
++------------------+----------------------+-----------------------------+
+```
 
 **User prefix:** workers are named `<user_prefix>.<N>` (e.g. `worker.1`, `worker.2`, …). All instances share the same password.
 
@@ -123,13 +135,17 @@ curl -s http://localhost:9092/api/v1/server/channels | python3 -m json.tool
 
 ## Crash Diagnostics
 
-| Symptom | Likely cause |
-|---|---|
-| `Connection refused` | Translator Proxy not running or wrong port |
-| `JSON-RPC error` / `"error":null,"result":false` | Auth failure (wrong username/password) or protocol mismatch |
-| `Stratum connection interrupted` | Network drop or server-side disconnect |
-| `No suitable long-poll found` | Wrong scheme (http instead of stratum+tcp) |
-| `Timed out after 60s` (oneshot) | Vardiff is too high — miner hasn't found a share within timeout |
+```
++------------------------------------------+------------------------------------------------------------------------+
+| Symptom                                  | Likely cause                                                           |
++------------------------------------------+------------------------------------------------------------------------+
+| Connection refused                       | Translator Proxy not running or wrong port                             |
+| JSON-RPC error / result:false            | Auth failure (wrong username/password) or protocol mismatch            |
+| Stratum connection interrupted           | Network drop or server-side disconnect                                 |
+| No suitable long-poll found              | Wrong scheme (http instead of stratum+tcp)                             |
+| Timed out after 60s (oneshot)            | Vardiff too high - miner hasn't found a share within timeout           |
++------------------------------------------+------------------------------------------------------------------------+
+```
 
 ```bash
 # Systemd logs for sustained instances

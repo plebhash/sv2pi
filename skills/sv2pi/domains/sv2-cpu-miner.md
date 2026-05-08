@@ -10,13 +10,18 @@ The Sv2 CPU miner is a testing tool (`github.com/plebhash/sv2-cpu-miner`). It is
 
 Load `{baseDir}/references/sv2-apps/cpu-miner-config-reference.md` for semantic explanations of every parameter. Key parameters the agent MUST resolve:
 
-| Parameter | Default | How to resolve |
-|---|---|---|
-| `server_addr` | `127.0.0.1:3333` | Pool's `listen_address` (direct) or JDC's `listening_address` (via JDC). Default 3333 for pool, 34265 for JDC. |
-| `auth_pk` | `9auqWEz...` (SRI example) | The pool's or JDC's `authority_public_key`. Read from `~/.sv2pi/pool/config/pool-config.toml` or `~/.sv2pi/jdc/config/jdc-config.toml`. |
-| `n_extended_channels` | `2` | Number of Extended Channels. Set to 0 when connecting directly to a pool (no JDS intermediary). |
-| `n_standard_channels` | `2` | Number of Standard Channels. Always valid. At least one channel type must be > 0. |
-| `cpu_usage_percent` | `100` | CPU throttle 1–100. Default 100 (full speed). Lower for testing without maxing out the host. |
+```
++---------------------+-------------------+------------------------------------------------------------------------+
+| Parameter           | Default           | How to resolve                                                         |
++---------------------+-------------------+------------------------------------------------------------------------+
+| server_addr         | 127.0.0.1:3333    | Pool listen_address (direct) or JDC listening_address (via JDC).      |
+|                     |                   | Default: 3333 for pool, 34265 for JDC.                                 |
+| auth_pk             | 9auqWEz... (SRI)  | Pool or JDC authority_public_key. Read from deployed config toml.      |
+| n_extended_channels | 2                 | Extended Channels. Set to 0 when connecting directly to pool (no JDS). |
+| n_standard_channels | 2                 | Standard Channels. Always valid. At least one type must be > 0.        |
+| cpu_usage_percent   | 100               | CPU throttle 1-100. Lower for testing without maxing out host.         |
++---------------------+-------------------+------------------------------------------------------------------------+
+```
 
 Additional parameters with defaults: `user_identity` (`username`), `device_id` (`sv2-cpu-miner`), `nominal_hashrate_multiplier` (`1.0`), `single_submit` (`false`).
 
