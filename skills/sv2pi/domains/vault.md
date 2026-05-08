@@ -135,7 +135,7 @@ The vault may contain a root `index.md` for Quartz publishing. The canonical cre
 
 ## Daily Vault Consolidation
 
-Once per day, the agent performs a comprehensive vault analysis and consolidation using the **ADMIN_MODEL** (`gpt-5.3-codex` via PPQ). This is a high-impact persistent-memory operation — the consolidation runs with the strongest available model because it modifies the vault's durable knowledge.
+Once per day, the agent performs a comprehensive vault analysis and consolidation using the **ADMIN_MODEL**. This is a high-impact persistent-memory operation — the consolidation runs with the strongest available model because it modifies the vault's durable knowledge. The concrete model backing `ADMIN_MODEL` is deployment configuration (see the vault's model-routing policy), not a hardcoded skill constant.
 
 ### Why consolidation exists
 

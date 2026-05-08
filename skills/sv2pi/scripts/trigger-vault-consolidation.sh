@@ -17,7 +17,7 @@ cat > "$TRIGGER_FILE" <<'EOF'
   "triggered_at": "TRIGGER_TIMESTAMP_PLACEHOLDER",
   "action": "vault-consolidation",
   "model": "ADMIN_MODEL",
-  "instructions": "Run the daily vault consolidation workflow as defined in domains/vault.md. Use ADMIN_MODEL (gpt-5.3-codex). Read the full consolidation section in domains/vault.md, follow the pre-flight checklist, analysis phase, and consolidation phase with all safety rules."
+  "instructions": "Run the daily vault consolidation workflow as defined in domains/vault.md. Use ADMIN_MODEL. Read the full consolidation section in domains/vault.md, follow the pre-flight checklist, analysis phase, and consolidation phase with all safety rules."
 }
 EOF
 
