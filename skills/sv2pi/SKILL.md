@@ -100,6 +100,7 @@ Use all four sources together. The vault gives durable cross-session context and
 | Deploy or diagnose Pool/JDS                                                                   | pool.md                                                  |
 | Deploy or diagnose JDC                                                                        | jdc.md                                                   |
 | Deploy or diagnose Translator Proxy                                                           | translator.md                                            |
+| Deploy, switch to, or diagnose hotpath-enabled SRI apps (alternative local-build deployment)   | hotpath-rs.md                                            |
 | Deploy or diagnose Sv2 CPU Miner                                                              | sv2-cpu-miner.md                                         |
 | Deploy or diagnose minerd SV1 load                                                            | minerd.md                                                |
 | Health diagnosis, crash investigation, topology questions, persistent memory, vault queries   | vault.md                                                 |
@@ -371,6 +372,7 @@ Then update `authority_public_key` and `authority_secret_key` in each app's conf
 - `{baseDir}/domains/pool.md` — Pool deployment, optional embedded JDS, keypair warnings, pool diagnostics
 - `{baseDir}/domains/jdc.md` — Job Declarator Client deployment and diagnostics
 - `{baseDir}/domains/translator.md` — Translator Proxy deployment, upstream flexibility, diagnostics
+- `{baseDir}/domains/hotpath-rs.md` — hotpath-enabled alternative deployment via SV2-bot/sv2-apps fork, local builds with `--features hotpath`, port mappings
 - `{baseDir}/domains/sv2-cpu-miner.md` — Sv2 CPU Miner testing workflow, verification, diagnostics
 - `{baseDir}/domains/minerd.md` — minerd SV1 CPU Miner testing workflow, verification, diagnostics
 - `{baseDir}/domains/vault.md` — persistent operations vault, read-before-act workflow, wiki tooling
@@ -414,6 +416,7 @@ The sv2-tp frozen directory contains:
 - `{baseDir}/scripts/check-ppq-balance.py` — live PPQ credit balance probe (reads API key from Pi config, never prints it)
 - `{baseDir}/scripts/deploy-bitcoin.sh` — deploy Bitcoin Core with IPC enabled
 - `{baseDir}/scripts/deploy-cpu-miner.sh` — deploy Sv2 CPU Miner for share-flow testing
+- `{baseDir}/scripts/deploy-hotpath.sh` — deploy hotpath-enabled SRI stacks via SV2-bot/sv2-apps fork with `--features hotpath`
 - `{baseDir}/scripts/deploy-jdc.sh` — deploy Job Declarator Client
 - `{baseDir}/scripts/deploy-minerd-sustained.sh` — deploy minerd sustained SV1 load as systemd services
 - `{baseDir}/scripts/deploy-pool.sh` — deploy Pool with optional embedded JDS
