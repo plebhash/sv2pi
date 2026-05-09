@@ -649,3 +649,85 @@ jobs:
             echo "FAIL: agent did not reference expected PPQ components"
             exit 1
           fi
+
+  # ── hotpath-rs: deploy translator in hotpath mode, validate profiling data ──
+
+  hotpath-rs:
+    name: hotpath-rs
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Pi
+        run: npm install -g @mariozechner/pi-coding-agent
+
+      - name: Install sv2pi skill
+        run: |
+          mkdir -p ~/.pi/agent/skills
+          cp -r skills/sv2pi ~/.pi/agent/skills/
+
+      - name: Run oneshot
+        run: |
+          pi $PI_ARGS -p "Load the sv2pi skill. Deploy translator_sv2 pointing to \
+            SRI Community Pool (default config). hotpath mode. Assert you can \
+            leverage hotpath CLI to probe CPU and memory profiling data. Assert \
+            you can interact with it via curl http://localhost:6773/profiler_status." \
+            2>&1 | tee /tmp/pi-output.txt
+
+      - name: Validate — no confusion loops
+        run: |
+          if grep -q 'Error parsing command line arguments: Invalid parameter' /tmp/pi-output.txt 2>/dev/null; then
+            echo "FAIL: agent passed invalid args"
+            exit 1
+          fi
+          if grep -q 'permission denied while trying to connect to the docker API' /tmp/pi-output.txt 2>/dev/null; then
+            echo "FAIL: Docker permission issue"
+            exit 1
+          fi
+          echo "PASS: no known confusion patterns"
+
+      - name: Validate — translator container running
+        run: |
+          echo "--- container status ---"
+          docker ps --filter name=translator_sv2 --format '{{.Names}} {{.Status}}'
+          docker ps --filter name=translator_sv2 --format '{{.Names}}' | grep -q translator_sv2 \
+            && echo "PASS: translator_sv2 container running" \
+            || { echo "FAIL: translator_sv2 container not running"; exit 1; }
+
+      - name: Validate — translator health check
+        run: |
+          for i in $(seq 1 10); do
+            curl -sf http://localhost:9092/api/v1/health && echo "PASS: Translator health OK" && exit 0
+            sleep 5
+          done
+          echo "FAIL: Translator health check failed after 50s"
+          docker logs translator_sv2 --tail 30
+          exit 1
+
+      - name: Validate — hotpath profiler_status endpoint
+        run: |
+          for i in $(seq 1 10); do
+            if curl -sf http://localhost:6773/profiler_status; then
+              echo "PASS: profiler_status endpoint reachable"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "FAIL: profiler_status endpoint unreachable after 50s"
+          exit 1
+
+      - name: Validate — hotpath CLI profiling data
+        run: |
+          echo "--- checking pi output for hotpath CLI profiling ---"
+          if grep -qiE '(hotpath console|CPU|memory|profiling data|call count|p95|p99)' /tmp/pi-output.txt; then
+            echo "PASS: agent referenced hotpath CLI profiling data"
+          else
+            echo "FAIL: agent did not reference hotpath CLI profiling data"
+            exit 1
+          fi
