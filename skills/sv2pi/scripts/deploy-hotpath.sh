@@ -117,7 +117,7 @@ for svc in "${SERVICES[@]}"; do
         translator_sv2)
             if [ ! -d "$CONFIG_TPROXY" ]; then
                 echo "ERROR: Translator config directory not found: $CONFIG_TPROXY"
-                echo "  Deploy standard translator first to generate configs (expected: tproxy-config.toml)."
+                echo "  Deploy standard translator first to generate configs (expected: translator-config.toml)."
                 exit 1
             fi
             ;;
@@ -136,26 +136,19 @@ export BITCOIN_SOCKET_PATH="$BITCOIN_IPC_PATH"
 export BITCOIN_IPC_DIR=$(dirname "$BITCOIN_IPC_PATH")
 export CONFIG_POOL CONFIG_JDC CONFIG_TPROXY DATA_POOL
 
+echo "=== Stopping existing containers ==="
+docker rm -f $SERVICE_NAMES 2>/dev/null || true
+
 if [ "$NO_BUILD" = true ]; then
     echo "=== Skipping build (--no-build) ==="
 else
-    echo "=== Stopping existing containers ==="
-    docker rm -f $SERVICE_NAMES 2>/dev/null || true
-
     if [ -d "$HOTPATH_CLONE/.git" ]; then
         if [ "$NO_RESET" = true ]; then
             echo "=== Clone exists, preserving local edits (--no-reset) ==="
         else
-            echo "=== Updating clone to $HOTPATH_TAG ==="
-            git -C "$HOTPATH_CLONE" fetch origin "$HOTPATH_TAG" --depth 1
-            if git -C "$HOTPATH_CLONE" diff --quiet; then
-                git -C "$HOTPATH_CLONE" checkout "$HOTPATH_TAG"
-            else
-                echo "WARNING: Local edits detected in $HOTPATH_CLONE."
-                echo "  git checkout would overwrite them. Use --no-reset to skip."
-                echo "  Run with --no-build to use existing images, or clone fresh."
-                exit 1
-            fi
+echo "=== Updating clone to $HOTPATH_TAG ==="
+            git -C "$HOTPATH_CLONE" fetch --tags --force origin --depth 1
+            git -C "$HOTPATH_CLONE" checkout --force "$HOTPATH_TAG"
         fi
     else
         rm -rf "$HOTPATH_CLONE"
