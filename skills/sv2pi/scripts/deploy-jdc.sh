@@ -2,6 +2,9 @@
 set -euo pipefail
 
 TAG="${1:-main}"
+if [[ "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    TAG="v$TAG"
+fi
 BITCOIN_IPC_PATH="${2:-${BITCOIN_IPC_PATH:-}}"
 POOL_HOST="${3:-75.119.150.111}"
 POOL_PORT="${4:-3333}"

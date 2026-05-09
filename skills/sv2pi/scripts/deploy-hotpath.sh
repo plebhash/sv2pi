@@ -111,6 +111,11 @@ for svc in "${SERVICES[@]}"; do
                 echo "  Deploy standard pool first to generate configs (expected: pool-config.toml)."
                 exit 1
             fi
+            if [ ! -f "$CONFIG_POOL/pool-config.toml" ]; then
+                echo "ERROR: Pool config file not found: $CONFIG_POOL/pool-config.toml"
+                echo "  Deploy standard pool first to generate configs (expected: pool-config.toml)."
+                exit 1
+            fi
             mkdir -p "$DATA_POOL"
             ;;
         jd_client_sv2)
@@ -119,10 +124,20 @@ for svc in "${SERVICES[@]}"; do
                 echo "  Deploy standard JDC first to generate configs (expected: jdc-config.toml)."
                 exit 1
             fi
+            if [ ! -f "$CONFIG_JDC/jdc-config.toml" ]; then
+                echo "ERROR: JDC config file not found: $CONFIG_JDC/jdc-config.toml"
+                echo "  Deploy standard JDC first to generate configs (expected: jdc-config.toml)."
+                exit 1
+            fi
             ;;
         translator_sv2)
             if [ ! -d "$CONFIG_TPROXY" ]; then
                 echo "ERROR: Translator config directory not found: $CONFIG_TPROXY"
+                echo "  Deploy standard translator first to generate configs (expected: translator-config.toml)."
+                exit 1
+            fi
+            if [ ! -f "$CONFIG_TPROXY/translator-config.toml" ]; then
+                echo "ERROR: Translator config file not found: $CONFIG_TPROXY/translator-config.toml"
                 echo "  Deploy standard translator first to generate configs (expected: translator-config.toml)."
                 exit 1
             fi

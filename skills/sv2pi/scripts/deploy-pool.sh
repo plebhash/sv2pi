@@ -2,6 +2,9 @@
 set -euo pipefail
 
 TAG="${1:-main}"
+if [[ "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    TAG="v$TAG"
+fi
 BITCOIN_IPC_PATH="${2:-${BITCOIN_IPC_PATH:-}}"
 CONFIG_DIR="${3:-$HOME/.sv2pi/pool/config}"
 DATA_DIR="${4:-$HOME/.sv2pi/pool/data}"

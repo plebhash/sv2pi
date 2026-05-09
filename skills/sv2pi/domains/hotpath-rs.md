@@ -141,7 +141,13 @@ To use it, set the `HOTPATH_FEATURES` build arg when building manually:
 docker compose -f docker/docker-compose.yml build --build-arg HOTPATH_FEATURES=hotpath-alloc pool_sv2
 ```
 
-Or edit the Dockerfile's `ARG HOTPATH_FEATURES=hotpath` default. Not available as a script flag — use `--build-only` then override manually.
+Or use the script flag:
+
+```bash
+bash {baseDir}/scripts/deploy-hotpath.sh 0.4.0 --hotpath-alloc pool
+```
+
+Or edit the Dockerfile's `ARG HOTPATH_FEATURES=hotpath` default.
 
 #### Verification
 
@@ -211,22 +217,23 @@ The `--features hotpath` flag pulls in the `hotpath` crate and its transitive de
 
 ### Hotpath Port Not Bound
 
-If `nc -z` fails but the container is running:
+If `curl -sf http://localhost:<port>/profiler_status` fails but the container is running:
 
 ```bash
-docker exec pool_sv2 ss -tlnp | grep 6770 || echo "hotpath port not bound"
-docker exec jd_client_sv2 ss -tlnp | grep 6770 || echo "hotpath port not bound"
-docker exec translator_sv2 ss -tlnp | grep 6770 || echo "hotpath port not bound"
+docker exec pool_sv2 ss -tlnp | grep 6781 || echo "pool hotpath port not bound"
+docker exec jd_client_sv2 ss -tlnp | grep 6782 || echo "JDC hotpath port not bound"
+docker exec translator_sv2 ss -tlnp | grep 6783 || echo "translator hotpath port not bound"
 ```
 
 Check for a stale container with the old image (missing `--features hotpath`). Rebuild (do NOT use `--no-build` — that skips the rebuild).
 
 ### Port Bound But No Profiling Data
 
-If `nc -z` succeeds but `hotpath console` shows empty data:
+If `curl -sf http://localhost:<port>/profiler_status` succeeds but profiling data is still missing:
 
 ```bash
-docker exec pool_sv2 ss -tlnp | grep 6770
+curl -sf http://localhost:6781/profiler_status
+curl -sf http://localhost:6781/threads | python3 -m json.tool | head -40
 ```
 
 If the port is bound but no data flows, the application-level hotpath init may have failed silently. Check the app logs for hotpath-related startup errors:

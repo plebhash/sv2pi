@@ -2,6 +2,9 @@
 set -euo pipefail
 
 TAG="${1:-main}"
+if [[ "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    TAG="v$TAG"
+fi
 UPSTREAM_HOST="${2:-localhost}"
 UPSTREAM_PORT="${3:-34265}"
 CONFIG_DIR="${4:-$HOME/.sv2pi/translator/config}"
