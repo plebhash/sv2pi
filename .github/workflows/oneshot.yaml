@@ -674,10 +674,12 @@ jobs:
 
       - name: Run oneshot
         run: |
-          pi $PI_ARGS -p "Load the sv2pi skill. Deploy translator_sv2 pointing to \
-            SRI Community Pool (default config). hotpath mode. Assert you can \
-            leverage hotpath CLI to probe CPU and memory profiling data. Assert \
-            you can interact with it via curl http://localhost:6773/profiler_status." \
+          pi $PI_ARGS -p "Load the sv2pi skill. Deploy translator_sv2 in hotpath \
+            mode. The upstream is the SRI Community Pool at 75.119.150.111:3333, \
+            authority pubkey 9auqWEzQDVyd2oe1JVGFLMLHZtCo2FFqZwtKA5gd9xbuEu7PH72. \
+            After deployment, assert you can profile CPU and memory data via the \
+            hotpath console TUI. Assert you can interact with the profiler via \
+            curl http://localhost:6773/profiler_status." \
             2>&1 | tee /tmp/pi-output.txt
 
       - name: Validate — no confusion loops
