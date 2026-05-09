@@ -1,27 +1,43 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="${1:-}"
-BITCOIN_IPC_PATH="${BITCOIN_IPC_PATH:-}"
-
+NO_BUILD=false
+BUILD_ONLY=false
+CHECK_ONLY=false
 SERVICES=()
-args=("$@")
-i=2
-while [ $i -le ${#args[@]} ]; do
-    arg="${args[$((i-1))]}"
+
+i=1
+while [ $i -le $# ]; do
+    arg="${!i}"
     case "$arg" in
+        --no-build)   NO_BUILD=true   ;;
+        --build-only) BUILD_ONLY=true ;;
+        --check)      CHECK_ONLY=true ;;
         pool|jdc|translator) SERVICES+=("${arg}_sv2") ;;
-        *) BITCOIN_IPC_PATH="$arg" ;;
+        *)
+            if [ $i -eq 1 ] && [[ "$arg" != --* ]]; then
+                VERSION="$arg"
+            else
+                echo "ERROR: Unknown argument: $arg"
+                echo "  Accepted: pool jdc translator --no-build --build-only --check"
+                exit 1
+            fi
+            ;;
     esac
     i=$((i+1))
 done
 
+VERSION="${VERSION:-}"
+
 if [ -z "$VERSION" ]; then
     echo "ERROR: Version required."
-    echo "Usage: $0 <version> [bitcoin-ipc-path] [pool] [jdc] [translator]"
-    echo "  version:          SRI release version (e.g. 0.4.0). Must be >= 0.4.0."
-    echo "  bitcoin-ipc-path: path to Bitcoin Core IPC socket."
+    echo "Usage: $0 <version> [--no-build] [--build-only] [--check] [pool] [jdc] [translator]"
+    echo "  version:     SRI release version (e.g. 0.4.0). Must be >= 0.4.0."
+    echo "  --no-build:  skip clone+build, just docker compose up -d."
+    echo "  --build-only: clone+build but do not start containers."
+    echo "  --check:     validate prerequisites only, no build or deployment."
     echo "  pool|jdc|translator: services to deploy. Omit to deploy all three."
+    echo "  BITCOIN_IPC_PATH env var can pre-set the IPC socket path."
     exit 1
 fi
 
@@ -33,17 +49,7 @@ if [ "$MAJOR" -eq 0 ] && [ "$MINOR" -lt 4 ]; then
     exit 1
 fi
 
-if [ -z "$BITCOIN_IPC_PATH" ]; then
-    BITCOIN_IPC_PATH="$HOME/.sv2pi/bitcoin/data/node.sock"
-fi
-
-if [ ! -S "$BITCOIN_IPC_PATH" ]; then
-    echo "ERROR: Bitcoin IPC socket not found at: $BITCOIN_IPC_PATH"
-    echo "  Verify Bitcoin Core is running with -ipcbind=unix"
-    exit 1
-fi
-
-BITCOIN_IPC_DIR=$(dirname "$BITCOIN_IPC_PATH")
+BITCOIN_IPC_PATH="${BITCOIN_IPC_PATH:-$HOME/.sv2pi/bitcoin/data/node.sock}"
 
 CONFIG_POOL="$HOME/.sv2pi/pool/config"
 CONFIG_JDC="$HOME/.sv2pi/jdc/config"
@@ -104,25 +110,51 @@ for svc in "${SERVICES[@]}"; do
     esac
 done
 
+if [ "$CHECK_ONLY" = true ]; then
+    echo "=== Pre-flight check passed ==="
+    exit 0
+fi
+
 HOTPATH_TAG="v${VERSION}-hotpath-rs"
-HOTPATH_CLONE="/tmp/sv2-apps-hotpath"
+HOTPATH_CLONE="/tmp/sv2-apps-hotpath-v${VERSION}"
 
-echo "=== Stopping existing containers ==="
-docker rm -f $SERVICE_NAMES 2>/dev/null || true
+BITCOIN_SOCKET_PATH="$BITCOIN_IPC_PATH"
+BITCOIN_IPC_DIR=$(dirname "$BITCOIN_IPC_PATH")
+export BITCOIN_SOCKET_PATH BITCOIN_IPC_DIR CONFIG_POOL CONFIG_JDC CONFIG_TPROXY DATA_POOL
 
-echo "=== Cloning SV2-bot/sv2-apps at $HOTPATH_TAG ==="
-rm -rf "$HOTPATH_CLONE"
-git clone --branch "$HOTPATH_TAG" --depth 1 https://github.com/SV2-bot/sv2-apps "$HOTPATH_CLONE"
+if [ "$NO_BUILD" = true ]; then
+    echo "=== Skipping build (--no-build) ==="
+else
+    echo "=== Stopping existing containers ==="
+    docker rm -f $SERVICE_NAMES 2>/dev/null || true
 
-echo "=== Building hotpath images ==="
-export BITCOIN_SOCKET_PATH="$BITCOIN_IPC_PATH"
-export BITCOIN_DATA_DIR="$BITCOIN_IPC_DIR"
-export CONFIG_POOL="$CONFIG_POOL"
-export CONFIG_JDC="$CONFIG_JDC"
-export CONFIG_TPROXY="$CONFIG_TPROXY"
-export DATA_POOL="$DATA_POOL"
+    echo "=== Cloning SV2-bot/sv2-apps at $HOTPATH_TAG ==="
+    if [ -d "$HOTPATH_CLONE/.git" ]; then
+        git -C "$HOTPATH_CLONE" fetch origin "$HOTPATH_TAG" --depth 1
+        git -C "$HOTPATH_CLONE" checkout "$HOTPATH_TAG"
+    else
+        rm -rf "$HOTPATH_CLONE"
+        git clone --branch "$HOTPATH_TAG" --depth 1 https://github.com/SV2-bot/sv2-apps "$HOTPATH_CLONE"
+    fi
 
-docker compose -f "$HOTPATH_CLONE/docker/docker-compose.yml" build $SERVICE_NAMES
+    echo "=== Building hotpath images ==="
+    docker compose -f "$HOTPATH_CLONE/docker/docker-compose.yml" build $SERVICE_NAMES
+
+    echo "=== Validating built images ==="
+    for svc in "${SERVICES[@]}"; do
+        base="${svc%_sv2}"
+        if ! docker image inspect "${base}_sv2:hotpath" >/dev/null 2>&1; then
+            echo "ERROR: Image ${base}_sv2:hotpath not found after build"
+            exit 1
+        fi
+    done
+    echo "All images validated."
+fi
+
+if [ "$BUILD_ONLY" = true ]; then
+    echo "=== Build-only mode, skipping deploy ==="
+    exit 0
+fi
 
 echo "=== Starting hotpath-enabled services ==="
 docker compose -f "$HOTPATH_CLONE/docker/docker-compose.yml" up -d $SERVICE_NAMES
