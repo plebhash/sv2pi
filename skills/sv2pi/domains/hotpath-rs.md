@@ -32,13 +32,13 @@ The fork tags follow the pattern `v{VERSION}-hotpath-rs` (e.g. `v0.4.0-hotpath-r
 
 #### Port Mapping
 
-Each service exposes an HTTP profiler endpoint on the host:
+Each service exposes an HTTP profiler endpoint on the host via host networking:
 
 | Service | Host Port | Notes |
 |---|---|---|
-| pool_sv2 | 6781 | Bridge: host 6781 → container 6770 |
-| jd_client_sv2 | 6782 | Bridge: host 6782 → container 6770 |
-| translator_sv2 | 6783 | Host networking — port set via `HOTPATH_METRICS_PORT=6783` |
+| pool_sv2 | 6781 | `network_mode: host`, `HOTPATH_METRICS_PORT=6781` |
+| jd_client_sv2 | 6782 | `network_mode: host`, `HOTPATH_METRICS_PORT=6782` |
+| translator_sv2 | 6783 | `network_mode: host`, `HOTPATH_METRICS_PORT=6783` |
 
 Standard ports (3333, 34265, 34255) and monitoring ports (9090, 9091, 9092) remain unchanged.
 

@@ -7,7 +7,7 @@ bash {baseDir}/scripts/deploy-translator.sh $DEPLOY_TAG
 ```
 
 This:
-- Creates `~/.sv2pi/translator/config/` and writes `tproxy-config.toml`
+- Creates `~/.sv2pi/translator/config/` and writes `translator-config.toml`
 - Upstream points to JDC on localhost:34265 by default
 - Exposes port 34255 (SV1 downstream), 9092 (monitoring)
 

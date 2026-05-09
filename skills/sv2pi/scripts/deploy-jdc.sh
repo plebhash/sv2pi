@@ -29,8 +29,8 @@ cat > "$CONFIG_DIR/jdc-config.toml" <<TOML
 listening_address = "0.0.0.0:34265"
 max_supported_version = 2
 min_supported_version = 2
-authority_public_key = "3diFFYHQpAZJ5Mk6oFwqyqDdHXLmB2Q2DxAtx4Z4v2q3S2x9C"
-authority_secret_key = "3kwYHhgrPqiHf3KjZPwS7aTQy3iZvL6kTbVHq5x8NcXdR4mFnQ"
+authority_public_key = "9auqWEzQDVyd2oe1JVGFLMLHZtCo2FFqZwtKA5gd9xbuEu7PH72"
+authority_secret_key = "mkDLTBBRxdBv998612qipDYoTK3YUrqLe8uWw7gu3iXbSrn2n"
 cert_validity_sec = 3600
 user_identity = "mainnet_miner"
 shares_per_minute = 6.0

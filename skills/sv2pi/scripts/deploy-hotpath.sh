@@ -19,7 +19,13 @@ while [ $i -le $# ]; do
         --no-reset)      NO_RESET=true   ;;
         --no-cache)      NO_CACHE=true   ;;
         --hotpath-alloc) HOTPATH_ALLOC=true ;;
-        pool|jdc|translator) SERVICES+=("${arg}_sv2") ;;
+        pool|jdc|translator)
+            if [ "$arg" = "jdc" ]; then
+                SERVICES+=("jd_client_sv2")
+            else
+                SERVICES+=("${arg}_sv2")
+            fi
+            ;;
         *)
             if [ $i -eq 1 ] && [[ "$arg" != --* ]]; then
                 VERSION="$arg"
@@ -194,19 +200,19 @@ for svc in "${SERVICES[@]}"; do
             echo -n "  pool_sv2:    "
             curl -sf http://localhost:9090/api/v1/health >/dev/null 2>&1 && echo "OK" || echo "UNREACHABLE"
             echo -n "  hotpath:     "
-            nc -z localhost 6781 2>/dev/null && echo "OK" || echo "CLOSED"
+            curl -sf http://localhost:6781/profiler_status >/dev/null 2>&1 && echo "OK" || echo "UNREACHABLE"
             ;;
         jd_client_sv2)
             echo -n "  jd_client:   "
             curl -sf http://localhost:9091/api/v1/health >/dev/null 2>&1 && echo "OK" || echo "UNREACHABLE"
             echo -n "  hotpath:     "
-            nc -z localhost 6782 2>/dev/null && echo "OK" || echo "CLOSED"
+            curl -sf http://localhost:6782/profiler_status >/dev/null 2>&1 && echo "OK" || echo "UNREACHABLE"
             ;;
         translator_sv2)
             echo -n "  translator:  "
             curl -sf http://localhost:9092/api/v1/health >/dev/null 2>&1 && echo "OK" || echo "UNREACHABLE"
             echo -n "  hotpath:     "
-            nc -z localhost 6783 2>/dev/null && echo "OK" || echo "CLOSED"
+            curl -sf http://localhost:6783/profiler_status >/dev/null 2>&1 && echo "OK" || echo "UNREACHABLE"
             ;;
     esac
 done
