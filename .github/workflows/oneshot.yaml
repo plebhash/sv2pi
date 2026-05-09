@@ -679,7 +679,7 @@ jobs:
             authority pubkey 9auqWEzQDVyd2oe1JVGFLMLHZtCo2FFqZwtKA5gd9xbuEu7PH72. \
             After deployment, assert you can profile CPU and memory data via the \
             hotpath console TUI. Assert you can interact with the profiler via \
-            curl http://localhost:6773/profiler_status." \
+            curl http://localhost:6783/profiler_status." \
             2>&1 | tee /tmp/pi-output.txt
 
       - name: Validate — no confusion loops
@@ -715,7 +715,7 @@ jobs:
       - name: Validate — hotpath profiler_status endpoint
         run: |
           for i in $(seq 1 10); do
-            if curl -sf http://localhost:6773/profiler_status; then
+            if curl -sf http://localhost:6783/profiler_status; then
               echo "PASS: profiler_status endpoint reachable"
               exit 0
             fi

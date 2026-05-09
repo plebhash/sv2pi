@@ -36,9 +36,9 @@ Each service exposes a hotpath port on the host, mapped to container port `6770`
 
 | Service | Host Port | Container Port |
 |---|---|---|
-| pool_sv2 | 6771 | 6770 |
-| jd_client_sv2 | 6772 | 6770 |
-| translator_sv2 | 6773 | 6770 |
+| pool_sv2 | 6781 | 6770 |
+| jd_client_sv2 | 6782 | 6770 |
+| translator_sv2 | 6783 | 6770 |
 
 Standard ports (3333, 34265, 34255) and monitoring ports (9090, 9091, 9092) remain unchanged.
 
@@ -88,9 +88,9 @@ cargo install hotpath --features=tui --locked
 Connect to a running service:
 
 ```bash
-hotpath console --metrics-host localhost --metrics-port 6771   # pool
-hotpath console --metrics-host localhost --metrics-port 6772   # JDC
-hotpath console --metrics-host localhost --metrics-port 6773   # translator
+hotpath console --metrics-host localhost --metrics-port 6781   # pool
+hotpath console --metrics-host localhost --metrics-port 6782   # JDC
+hotpath console --metrics-host localhost --metrics-port 6783   # translator
 ```
 
 Also see the fork's `PROFILING.md` for interpretation: call counts, p95/p99 latency, memory allocations, static reports vs. live TUI.
@@ -120,17 +120,17 @@ curl -s http://localhost:9092/api/v1/health | python3 -m json.tool
 Verify hotpath ports are reachable (TCP check, not HTTP):
 
 ```bash
-nc -z localhost 6771 && echo "pool hotpath OK"
-nc -z localhost 6772 && echo "jdc hotpath OK"
-nc -z localhost 6773 && echo "translator hotpath OK"
+nc -z localhost 6781 && echo "pool hotpath OK"
+nc -z localhost 6782 && echo "jdc hotpath OK"
+nc -z localhost 6783 && echo "translator hotpath OK"
 ```
 
 Verify profiling data flows (requires `cargo install hotpath --features=tui --locked`):
 
 ```bash
-hotpath console --metrics-host localhost --metrics-port 6771   # pool
-hotpath console --metrics-host localhost --metrics-port 6772   # JDC
-hotpath console --metrics-host localhost --metrics-port 6773   # translator
+hotpath console --metrics-host localhost --metrics-port 6781   # pool
+hotpath console --metrics-host localhost --metrics-port 6782   # JDC
+hotpath console --metrics-host localhost --metrics-port 6783   # translator
 ```
 
 #### Switching Back to Standard

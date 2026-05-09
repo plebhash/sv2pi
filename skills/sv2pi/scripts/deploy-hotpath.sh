@@ -201,19 +201,19 @@ for svc in "${SERVICES[@]}"; do
             echo -n "  pool_sv2:    "
             curl -sf http://localhost:9090/api/v1/health >/dev/null 2>&1 && echo "OK" || echo "UNREACHABLE"
             echo -n "  hotpath:     "
-            nc -z localhost 6771 2>/dev/null && echo "OK" || echo "CLOSED"
+            nc -z localhost 6781 2>/dev/null && echo "OK" || echo "CLOSED"
             ;;
         jd_client_sv2)
             echo -n "  jd_client:   "
             curl -sf http://localhost:9091/api/v1/health >/dev/null 2>&1 && echo "OK" || echo "UNREACHABLE"
             echo -n "  hotpath:     "
-            nc -z localhost 6772 2>/dev/null && echo "OK" || echo "CLOSED"
+            nc -z localhost 6782 2>/dev/null && echo "OK" || echo "CLOSED"
             ;;
         translator_sv2)
             echo -n "  translator:  "
             curl -sf http://localhost:9092/api/v1/health >/dev/null 2>&1 && echo "OK" || echo "UNREACHABLE"
             echo -n "  hotpath:     "
-            nc -z localhost 6773 2>/dev/null && echo "OK" || echo "CLOSED"
+            nc -z localhost 6783 2>/dev/null && echo "OK" || echo "CLOSED"
             ;;
     esac
 done
@@ -226,9 +226,9 @@ echo ""
 PORT_TABLE() {
 cat <<'PORTS'
   Port mappings:
-    pool_sv2:       http://localhost:9090 (monitoring)  localhost:3333 (stratum)  localhost:6771 (hotpath)
-    jd_client_sv2:  http://localhost:9091 (monitoring)  localhost:34265 (sv2)     localhost:6772 (hotpath)
-    translator_sv2: http://localhost:9092 (monitoring)  localhost:34255 (sv1)     localhost:6773 (hotpath)
+    pool_sv2:       http://localhost:9090 (monitoring)  localhost:3333 (stratum)  localhost:6781 (hotpath)
+    jd_client_sv2:  http://localhost:9091 (monitoring)  localhost:34265 (sv2)     localhost:6782 (hotpath)
+    translator_sv2: http://localhost:9092 (monitoring)  localhost:34255 (sv1)     localhost:6783 (hotpath)
 PORTS
 }
 PORT_TABLE
