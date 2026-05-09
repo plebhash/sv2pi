@@ -8,20 +8,22 @@ CONFIG_DIR="${4:-$HOME/.sv2pi/translator/config}"
 
 mkdir -p "$CONFIG_DIR"
 
-cat > "$CONFIG_DIR/tproxy-config.toml" <<TOML
+cat > "$CONFIG_DIR/translator-config.toml" <<TOML
 downstream_address = "0.0.0.0"
 downstream_port = 34255
+max_supported_version = 2
+min_supported_version = 2
 downstream_extranonce2_size = 4
 user_identity = "mainnet_miner"
 aggregate_channels = true
 monitoring_address = "0.0.0.0:9092"
 monitoring_cache_refresh_secs = 15
-job_keepalive_interval_secs = 60
 
 [downstream_difficulty_config]
 min_individual_miner_hashrate = 100_000_000_000_000.0
 shares_per_minute = 6.0
 enable_vardiff = true
+job_keepalive_interval_secs = 60
 
 [[upstreams]]
 address = "$UPSTREAM_HOST"

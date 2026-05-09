@@ -32,15 +32,44 @@ The fork tags follow the pattern `v{VERSION}-hotpath-rs` (e.g. `v0.4.0-hotpath-r
 
 #### Port Mapping
 
-Each service exposes a hotpath port on the host, mapped to container port `6770`:
+Each service exposes an HTTP profiler endpoint on the host:
 
-| Service | Host Port | Container Port |
+| Service | Host Port | Notes |
 |---|---|---|
-| pool_sv2 | 6781 | 6770 |
-| jd_client_sv2 | 6782 | 6770 |
-| translator_sv2 | 6783 | 6770 |
+| pool_sv2 | 6781 | Bridge: host 6781 → container 6770 |
+| jd_client_sv2 | 6782 | Bridge: host 6782 → container 6770 |
+| translator_sv2 | 6783 | Host networking — port set via `HOTPATH_METRICS_PORT=6783` |
 
 Standard ports (3333, 34265, 34255) and monitoring ports (9090, 9091, 9092) remain unchanged.
+
+#### Translator Config
+
+The hotpath translator expects the config at `translator-config.toml` (not `tproxy-config.toml`).
+The standard `deploy-translator.sh` generates this file directly at `~/.sv2pi/translator/config/translator-config.toml`.
+Required fields and their placement:
+
+```toml
+downstream_address = "0.0.0.0"
+downstream_port = 34255
+max_supported_version = 2
+min_supported_version = 2
+downstream_extranonce2_size = 4
+user_identity = "mainnet_miner"
+aggregate_channels = true
+monitoring_address = "0.0.0.0:9092"
+monitoring_cache_refresh_secs = 15
+
+[downstream_difficulty_config]
+min_individual_miner_hashrate = 100_000_000_000_000.0
+shares_per_minute = 6.0
+enable_vardiff = true
+job_keepalive_interval_secs = 60
+
+[[upstreams]]
+address = "75.119.150.111"
+port = 3333
+authority_pubkey = "9auqWEzQDVyd2oe1JVGFLMLHZtCo2FFqZwtKA5gd9xbuEu7PH72"
+```
 
 #### Deployment
 
@@ -79,7 +108,14 @@ This:
 
 #### Viewing Profiling Data
 
-Install the hotpath TUI client:
+The profiler exposes HTTP endpoints. Non-interactive verification:
+
+```bash
+curl -s http://localhost:6783/profiler_status   # uptime and status
+curl -s http://localhost:6783/threads            # thread CPU + RSS
+```
+
+For interactive live profiling, install the hotpath TUI client:
 
 ```bash
 cargo install hotpath --features=tui --locked
@@ -88,9 +124,9 @@ cargo install hotpath --features=tui --locked
 Connect to a running service:
 
 ```bash
-hotpath console --metrics-host localhost --metrics-port 6781   # pool
-hotpath console --metrics-host localhost --metrics-port 6782   # JDC
-hotpath console --metrics-host localhost --metrics-port 6783   # translator
+hotpath console --metrics-host http://localhost --metrics-port 6781   # pool
+hotpath console --metrics-host http://localhost --metrics-port 6782   # JDC
+hotpath console --metrics-host http://localhost --metrics-port 6783   # translator
 ```
 
 Also see the fork's `PROFILING.md` for interpretation: call counts, p95/p99 latency, memory allocations, static reports vs. live TUI.
@@ -112,25 +148,31 @@ Or edit the Dockerfile's `ARG HOTPATH_FEATURES=hotpath` default. Not available a
 ```bash
 docker ps --filter "name=pool_sv2" --filter "name=jd_client_sv2" --filter "name=translator_sv2" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
-curl -s http://localhost:9090/api/v1/health | python3 -m json.tool
-curl -s http://localhost:9091/api/v1/health | python3 -m json.tool
-curl -s http://localhost:9092/api/v1/health | python3 -m json.tool
+curl -sf http://localhost:9090/api/v1/health | python3 -m json.tool
+curl -sf http://localhost:9091/api/v1/health | python3 -m json.tool
+curl -sf http://localhost:9092/api/v1/health | python3 -m json.tool
 ```
 
-Verify hotpath ports are reachable (TCP check, not HTTP):
+Verify profiler HTTP endpoints:
 
 ```bash
-nc -z localhost 6781 && echo "pool hotpath OK"
-nc -z localhost 6782 && echo "jdc hotpath OK"
-nc -z localhost 6783 && echo "translator hotpath OK"
+curl -sf http://localhost:6781/profiler_status && echo "pool profiler OK"
+curl -sf http://localhost:6782/profiler_status && echo "JDC profiler OK"
+curl -sf http://localhost:6783/profiler_status && echo "translator profiler OK"
+```
+
+Verify CPU and memory profiling data:
+
+```bash
+curl -sf http://localhost:6783/threads | python3 -m json.tool | head -40
 ```
 
 Verify profiling data flows (requires `cargo install hotpath --features=tui --locked`):
 
 ```bash
-hotpath console --metrics-host localhost --metrics-port 6781   # pool
-hotpath console --metrics-host localhost --metrics-port 6782   # JDC
-hotpath console --metrics-host localhost --metrics-port 6783   # translator
+hotpath console --metrics-host http://localhost --metrics-port 6781   # pool
+hotpath console --metrics-host http://localhost --metrics-port 6782   # JDC
+hotpath console --metrics-host http://localhost --metrics-port 6783   # translator
 ```
 
 #### Switching Back to Standard

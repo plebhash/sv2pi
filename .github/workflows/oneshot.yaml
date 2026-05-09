@@ -715,7 +715,7 @@ jobs:
       - name: Validate — hotpath profiler_status endpoint
         run: |
           for i in $(seq 1 10); do
-            if curl -sf http://localhost:6783/profiler_status; then
+            if curl -sf http://localhost:6783/profiler_status | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d else 1)"; then
               echo "PASS: profiler_status endpoint reachable"
               exit 0
             fi
@@ -724,12 +724,22 @@ jobs:
           echo "FAIL: profiler_status endpoint unreachable after 50s"
           exit 1
 
-      - name: Validate — hotpath CLI profiling data
+      - name: Validate — hotpath CPU and memory profiling data
         run: |
-          echo "--- checking pi output for hotpath CLI profiling ---"
-          if grep -qiE '(hotpath console|CPU|memory|profiling data|call count|p95|p99)' /tmp/pi-output.txt; then
-            echo "PASS: agent referenced hotpath CLI profiling data"
-          else
-            echo "FAIL: agent did not reference hotpath CLI profiling data"
-            exit 1
-          fi
+          for i in $(seq 1 10); do
+            THREADS=$(curl -sf http://localhost:6783/threads 2>/dev/null || echo '{}')
+            if echo "$THREADS" | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+has_rss = d.get('rss_bytes') or d.get('rss')
+has_cpu = d.get('thread_count') is not None
+sys.exit(0 if (has_rss and has_cpu) else 1)
+" 2>/dev/null; then
+              echo "PASS: /threads endpoint returns CPU and memory data"
+              echo "$THREADS" | python3 -m json.tool 2>/dev/null | head -20
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "FAIL: /threads endpoint did not return CPU/memory data after 50s"
+          exit 1
