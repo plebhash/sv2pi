@@ -727,13 +727,7 @@ jobs:
         run: |
           for i in $(seq 1 10); do
             THREADS=$(curl -sf http://localhost:6783/threads 2>/dev/null || echo '{}')
-            if echo "$THREADS" | python3 -c "
-import sys,json
-d=json.load(sys.stdin)
-has_rss = d.get('rss_bytes') or d.get('rss')
-has_cpu = d.get('thread_count') is not None
-sys.exit(0 if (has_rss and has_cpu) else 1)
-" 2>/dev/null; then
+            if echo "$THREADS" | python3 -c 'import sys,json; d=json.load(sys.stdin); has_rss = d.get("rss_bytes") or d.get("rss"); has_cpu = d.get("thread_count") is not None; sys.exit(0 if (has_rss and has_cpu) else 1)' 2>/dev/null; then
               echo "PASS: /threads endpoint returns CPU and memory data"
               echo "$THREADS" | python3 -m json.tool 2>/dev/null | head -20
               exit 0
