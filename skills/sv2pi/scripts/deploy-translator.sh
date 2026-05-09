@@ -26,7 +26,7 @@ enable_vardiff = true
 [[upstreams]]
 address = "$UPSTREAM_HOST"
 port = $UPSTREAM_PORT
-authority_pubkey = "3diFFYHQpAZJ5Mk6oFwqyqDdHXLmB2Q2DxAtx4Z4v2q3S2x9C"
+authority_pubkey = "9auqWEzQDVyd2oe1JVGFLMLHZtCo2FFqZwtKA5gd9xbuEu7PH72"
 TOML
 
 docker rm -f translator_sv2 2>/dev/null || true
