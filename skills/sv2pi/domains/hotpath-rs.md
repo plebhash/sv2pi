@@ -42,8 +42,6 @@ Each service exposes a hotpath port on the host, mapped to container port `6770`
 
 Standard ports (3333, 34265, 34255) and monitoring ports (9090, 9091, 9092) remain unchanged.
 
-**Hotpath ports run a custom binary TCP protocol — not HTTP or gRPC.** `curl` will get "Connection reset by peer". See [Viewing Profiling Data](#viewing-profiling-data) for the client.
-
 #### Deployment
 
 **Deploy only the roles the user needs** — follow the same dependency graph as standard deployments.
