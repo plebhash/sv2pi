@@ -3,13 +3,13 @@
 *Requires: Upstream SV2 mining server (JDC, Pool, or remote).*
 
 ```bash
-bash {baseDir}/scripts/deploy-translator.sh $DEPLOY_TAG
+bash {baseDir}/scripts/deploy-translator.sh $DEPLOY_TAG [upstream-host] [upstream-port] [config-dir] [monitoring-bind-mode] [wireguard-ip]
 ```
 
 This:
 - Creates `~/.sv2pi/translator/config/` and writes `translator-config.toml`
 - Upstream points to JDC on localhost:34265 by default
-- Exposes port 34255 (SV1 downstream), 9092 (monitoring)
+- Exposes port `34255` on `0.0.0.0` (SV1 downstream), and `9092` on `localhost` by default (or WireGuard when requested)
 
 **Upstream flexibility:** The Translator Proxy is not coupled to any specific local deployment. Point it at whatever SV2 mining server the user needs:
 - **Local JDC:** `localhost:34265` (default)
@@ -19,9 +19,11 @@ This:
 After deployment, verify:
 ```bash
 docker logs translator_sv2 --tail 20
-curl -s http://localhost:9092/api/v1/health
-curl -s http://localhost:9092/api/v1/sv1/clients
+curl -s http://<monitoring-host>:9092/api/v1/health
+curl -s http://<monitoring-host>:9092/api/v1/sv1/clients
 ```
+
+Use `monitoring-host=localhost` for localhost mode, or the configured WireGuard IP when `monitoring-bind-mode=wireguard`.
 
 ## SV1 Load Generation with minerd
 

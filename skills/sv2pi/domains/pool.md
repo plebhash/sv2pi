@@ -20,8 +20,10 @@ Generate **two** secp256k1 keypairs: one for the pool app, one for the JDC app. 
 If the user has already reviewed the config templates (Step 2) and agrees to use defaults, deploy directly:
 
 ```bash
-bash {baseDir}/scripts/deploy-pool.sh $DEPLOY_TAG $BITCOIN_IPC_PATH
+bash {baseDir}/scripts/deploy-pool.sh $DEPLOY_TAG $BITCOIN_IPC_PATH [config-dir] [data-dir] [monitoring-bind-mode] [wireguard-ip]
 ```
+
+`monitoring-bind-mode` defaults to `localhost` and can be set to `wireguard` to expose port `9090` only on a WireGuard address. Mining/JDS ports (`3333`/`3334`) stay on `0.0.0.0`.
 
 If the user's request is vague (e.g. "deploy a pool"), walk them through each configuration choice from the frozen Docker config template, offering the default value each time. Key parameters:
 

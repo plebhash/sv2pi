@@ -12,20 +12,22 @@ When deploying, the agent must ask the user two questions, in this order:
    Ask the user if they want these defaults or different addresses. Do not ask whether to launch a local pool — assume a pool already exists somewhere and the user knows its address.
 
 ```bash
-bash {baseDir}/scripts/deploy-jdc.sh $DEPLOY_TAG $BITCOIN_IPC_PATH [pool-host] [pool-port] [jds-port]
+bash {baseDir}/scripts/deploy-jdc.sh $DEPLOY_TAG $BITCOIN_IPC_PATH [pool-host] [pool-port] [jds-port] [config-dir] [monitoring-bind-mode] [wireguard-ip]
 ```
 
 This:
 - Creates `~/.sv2pi/jdc/config/` and writes `jdc-config.toml`
 - Uses SRI community defaults (`75.119.150.111:3333` / `75.119.150.111:3334`) when no overrides are supplied
-- Exposes port 34265 (downstream), 9091 (monitoring)
+- Exposes port `34265` on `0.0.0.0` (downstream), and `9091` on `localhost` by default (or WireGuard when requested)
 
 After deployment, verify:
 
 ```
 docker logs jd_client_sv2 --tail 20
-curl -s http://localhost:9091/api/v1/health
+curl -s http://<monitoring-host>:9091/api/v1/health
 ```
+
+Use `monitoring-host=localhost` for localhost mode, or the configured WireGuard IP when `monitoring-bind-mode=wireguard`.
 
 Then deploy **sv2-cpu-miner** pointed at JDC as a smoke test. Configure it with **1 extended channel** and **1 standard channel**. Confirm both channels open successfully:
 

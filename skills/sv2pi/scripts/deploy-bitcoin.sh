@@ -4,6 +4,8 @@ set -euo pipefail
 TAG="${1:-latest}"
 DATA_DIR="${2:-$HOME/.sv2pi/bitcoin/data}"
 NETWORK="${3:-mainnet}"
+RPC_BIND_MODE="${4:-localhost}"
+RPC_BIND_IP="${5:-}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -12,6 +14,31 @@ NC='\033[0m'
 
 err() { printf '%bERROR:%b %s\n' "${RED}" "${NC}" "$*" >&2; }
 ok()  { printf '%bOK:%b %s\n' "${GREEN}" "${NC}" "$*"; }
+
+resolve_bind_ip() {
+    case "$1" in
+        localhost)
+            printf '127.0.0.1'
+            ;;
+        wireguard)
+            if [ -n "$2" ]; then
+                printf '%s' "$2"
+                return
+            fi
+            if [ -n "${SV2PI_WIREGUARD_IP:-}" ]; then
+                printf '%s' "$SV2PI_WIREGUARD_IP"
+                return
+            fi
+            err 'wireguard bind mode requires an explicit WireGuard IP.'
+            echo '  Pass it as the 5th argument or set SV2PI_WIREGUARD_IP.'
+            exit 1
+            ;;
+        *)
+            err "invalid RPC bind mode: $1 (use localhost or wireguard)"
+            exit 1
+            ;;
+    esac
+}
 
 # Check Docker access — agent must not invoke sudo/newgrp/sg.
 # Docker group membership is the operator's responsibility.
@@ -29,6 +56,8 @@ case "$NETWORK" in
     *) err "unknown network: $NETWORK (use mainnet, testnet4, or signet)"; exit 1 ;;
 esac
 
+RPC_HOST_BIND="$(resolve_bind_ip "$RPC_BIND_MODE" "$RPC_BIND_IP")"
+
 printf '\n%bBitcoin Core (Docker)%b\n' "${CYAN}" "${NC}"
 printf '  Image:   bitcoin/bitcoin:%s\n' "$TAG"
 printf '  Network: %s\n' "$NETWORK"
@@ -43,8 +72,8 @@ docker pull "bitcoin/bitcoin:$TAG" >/dev/null 2>&1 && ok 'done' || err 'pull fai
 docker run -d \
     --name bitcoin_core \
     --restart unless-stopped \
-    -p ${RPC_PORT}:${RPC_PORT} \
-    -p ${P2P_PORT}:${P2P_PORT} \
+    -p "${RPC_HOST_BIND}:${RPC_PORT}:${RPC_PORT}" \
+    -p "0.0.0.0:${P2P_PORT}:${P2P_PORT}" \
     -v "${DATA_DIR}:/home/bitcoin/.bitcoin" \
     --entrypoint bitcoin \
     "bitcoin/bitcoin:${TAG}" \
@@ -59,7 +88,8 @@ echo '=== Bitcoin Core deployed ==='
 printf '  Image:      bitcoin/bitcoin:%s\n' "$TAG"
 printf '  Network:    %s\n' "$NETWORK"
 printf '  IPC socket: %s/node.sock\n' "$DATA_DIR"
-printf '  RPC port:   %s\n' "$RPC_PORT"
+printf '  RPC endpoint: %s:%s\n' "$RPC_HOST_BIND" "$RPC_PORT"
 printf '  P2P port:   %s\n' "$P2P_PORT"
+printf '  RPC bind:   %s (%s)\n' "$RPC_HOST_BIND" "$RPC_BIND_MODE"
 echo ''
 printf 'BITCOIN_IPC_PATH=%s/node.sock\n' "$DATA_DIR"

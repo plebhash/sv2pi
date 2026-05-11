@@ -40,7 +40,7 @@ Each service exposes profiler and MCP endpoints on the host via host networking:
 | jd_client_sv2 | 6782 | 6792 | `network_mode: host`, `HOTPATH_METRICS_PORT=6782`, `HOTPATH_MCP_PORT=6792` |
 | tproxy (translator_sv2) | 6783 | 6793 | `network_mode: host`, `HOTPATH_METRICS_PORT=6783`, `HOTPATH_MCP_PORT=6793` |
 
-Standard ports (3333, 34265, 34255) and monitoring ports (9090, 9091, 9092) remain unchanged.
+Standard data ports (3333, 34265, 34255) remain unchanged. Monitoring ports (9090, 9091, 9092) follow bind policy: `localhost` by default, or explicit WireGuard IP when requested.
 
 #### Translator Config
 
@@ -83,8 +83,11 @@ Flags:
 - `--no-build` — skip clone+build, just `docker compose up -d` (for restart after config changes)
 - `--build-only` — clone+build but do not start containers
 - `--check` — validate prerequisites only, no build or deploy
+- `--monitoring-localhost` — bind monitoring APIs to localhost only (default)
+- `--monitoring-wireguard <ip>` — bind monitoring APIs to a WireGuard IP
 
 `BITCOIN_IPC_PATH` can be set in the environment to pre-seed the IPC socket path.
+`MONITORING_BIND_MODE` and `MONITORING_BIND_IP` can also be supplied via environment variables.
 
 Service keywords (`pool`, `jdc`, `translator`) are optional. If none are specified, all three are deployed. Examples:
 
@@ -94,6 +97,7 @@ bash {baseDir}/scripts/deploy-hotpath.sh 0.4.0 translator          # translator 
 bash {baseDir}/scripts/deploy-hotpath.sh 0.4.0                     # all three
 bash {baseDir}/scripts/deploy-hotpath.sh 0.4.0 --no-build pool     # restart pool after config edit
 bash {baseDir}/scripts/deploy-hotpath.sh 0.4.0 --check pool jdc    # dry-run check
+bash {baseDir}/scripts/deploy-hotpath.sh 0.4.0 --monitoring-wireguard 10.77.0.2 pool
 ```
 
 This:
@@ -170,10 +174,12 @@ Or edit the Dockerfile's `ARG HOTPATH_FEATURES=hotpath` default.
 ```bash
 docker ps --filter "name=pool_sv2" --filter "name=jd_client_sv2" --filter "name=translator_sv2" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
-curl -sf http://localhost:9090/api/v1/health | python3 -m json.tool
-curl -sf http://localhost:9091/api/v1/health | python3 -m json.tool
-curl -sf http://localhost:9092/api/v1/health | python3 -m json.tool
+curl -sf http://<monitoring-host>:9090/api/v1/health | python3 -m json.tool
+curl -sf http://<monitoring-host>:9091/api/v1/health | python3 -m json.tool
+curl -sf http://<monitoring-host>:9092/api/v1/health | python3 -m json.tool
 ```
+
+Use `monitoring-host=localhost` for localhost mode, or the configured WireGuard IP when `--monitoring-wireguard` is used.
 
 Verify profiler HTTP endpoints:
 
