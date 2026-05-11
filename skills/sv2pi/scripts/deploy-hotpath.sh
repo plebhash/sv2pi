@@ -50,7 +50,7 @@ if [ -z "$VERSION" ]; then
     echo "  --check:         validate prerequisites only, no build or deployment."
     echo "  --no-reset:      if clone exists, do not git checkout (preserve local edits)."
     echo "  --no-cache:      pass --no-cache to docker compose build."
-    echo "  --hotpath-alloc: pass HOTPATH_FEATURES=hotpath-alloc to docker compose build."
+    echo "  --hotpath-alloc: pass HOTPATH_FEATURES=hotpath-alloc,hotpath-mcp to docker compose build."
     echo "  pool|jdc|translator: services to deploy. Omit to deploy all three."
     echo ""
     echo "  Environment variables:"
@@ -182,7 +182,7 @@ echo "=== Updating clone to $HOTPATH_TAG ==="
         BUILD_ARGS+=(--no-cache)
     fi
     if [ "$HOTPATH_ALLOC" = true ]; then
-        BUILD_ARGS+=(--build-arg HOTPATH_FEATURES=hotpath-alloc)
+        BUILD_ARGS+=(--build-arg HOTPATH_FEATURES=hotpath-alloc,hotpath-mcp)
     fi
 
     echo "=== Building hotpath images ==="
@@ -240,9 +240,9 @@ echo ""
 PORT_TABLE() {
 cat <<'PORTS'
   Port mappings:
-    pool_sv2:       http://localhost:9090 (monitoring)  localhost:3333 (stratum)  localhost:6781 (hotpath)
-    jd_client_sv2:  http://localhost:9091 (monitoring)  localhost:34265 (sv2)     localhost:6782 (hotpath)
-    translator_sv2: http://localhost:9092 (monitoring)  localhost:34255 (sv1)     localhost:6783 (hotpath)
+    pool_sv2:       http://localhost:9090 (monitoring)  localhost:3333 (stratum)  localhost:6781 (profiler)  http://localhost:6791/mcp
+    jd_client_sv2:  http://localhost:9091 (monitoring)  localhost:34265 (sv2)     localhost:6782 (profiler)  http://localhost:6792/mcp
+    translator_sv2: http://localhost:9092 (monitoring)  localhost:34255 (sv1)     localhost:6783 (profiler)  http://localhost:6793/mcp
 PORTS
 }
 PORT_TABLE
