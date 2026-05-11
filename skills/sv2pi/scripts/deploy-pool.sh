@@ -5,12 +5,47 @@ TAG="${1:-main}"
 BITCOIN_IPC_PATH="${2:-${BITCOIN_IPC_PATH:-}}"
 CONFIG_DIR="${3:-$HOME/.sv2pi/pool/config}"
 DATA_DIR="${4:-$HOME/.sv2pi/pool/data}"
+MONITORING_BIND_MODE="${5:-localhost}"
+MONITORING_BIND_IP="${6:-}"
+
+err() { printf 'ERROR: %s\n' "$*" >&2; }
+
+resolve_bind_ip() {
+    case "$1" in
+        localhost)
+            printf '127.0.0.1'
+            ;;
+        wireguard)
+            if [ -n "$2" ]; then
+                printf '%s' "$2"
+                return
+            fi
+            if [ -n "${SV2PI_WIREGUARD_IP:-}" ]; then
+                printf '%s' "$SV2PI_WIREGUARD_IP"
+                return
+            fi
+            err 'wireguard bind mode requires an explicit WireGuard IP.'
+            echo '  Pass it as the 6th argument or set SV2PI_WIREGUARD_IP.'
+            exit 1
+            ;;
+        *)
+            err "invalid monitoring bind mode: $1 (use localhost or wireguard)"
+            exit 1
+            ;;
+    esac
+}
 
 if [ -z "$BITCOIN_IPC_PATH" ]; then
     echo "ERROR: Bitcoin IPC path required."
-    echo "Usage: $0 <tag> <bitcoin-ipc-path> [config-dir] [data-dir]"
+    echo "Usage: $0 <tag> <bitcoin-ipc-path> [config-dir] [data-dir] [monitoring-bind-mode] [monitoring-bind-ip]"
     echo "  Run check-bitcoin.sh first to detect the IPC socket."
     exit 1
+fi
+
+MONITORING_HOST_BIND="$(resolve_bind_ip "$MONITORING_BIND_MODE" "$MONITORING_BIND_IP")"
+MONITORING_HEALTH_HOST="$MONITORING_HOST_BIND"
+if [ "$MONITORING_BIND_MODE" = "localhost" ]; then
+    MONITORING_HEALTH_HOST="localhost"
 fi
 
 # Socket check. Agent does not invoke sudo; operator must ensure socket is readable.
@@ -50,9 +85,9 @@ docker rm -f pool_sv2 2>/dev/null || true
 docker run -d \
     --name pool_sv2 \
     --restart unless-stopped \
-    -p 3333:3333 \
-    -p 3334:3334 \
-    -p 9090:9090 \
+    -p "0.0.0.0:3333:3333" \
+    -p "0.0.0.0:3334:3334" \
+    -p "${MONITORING_HOST_BIND}:9090:9090" \
     -v "$CONFIG_DIR/pool-config.toml:/app/pool-config.toml:ro" \
     -v "$BITCOIN_IPC_PATH:/root/.bitcoin/node.sock:ro" \
     -v "$DATA_DIR:/app/data" \
@@ -63,8 +98,9 @@ echo "=== Pool deployed ==="
 echo "  Image:            stratumv2/pool_sv2:$TAG"
 echo "  Stratum endpoint: localhost:3333"
 echo "  JDS endpoint:     localhost:3334"
-echo "  Monitoring:       http://localhost:9090"
+echo "  Monitoring:       http://${MONITORING_HEALTH_HOST}:9090"
+echo "  Monitoring bind:  ${MONITORING_HOST_BIND} (${MONITORING_BIND_MODE})"
 echo "  Bitcoin IPC:      mounted $BITCOIN_IPC_PATH -> /root/.bitcoin/node.sock"
 echo ""
-echo "Verify: curl -s http://localhost:9090/api/v1/health"
+echo "Verify: curl -s http://${MONITORING_HEALTH_HOST}:9090/api/v1/health"
 echo "Logs:   docker logs pool_sv2 --tail 50"

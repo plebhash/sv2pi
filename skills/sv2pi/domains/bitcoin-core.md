@@ -9,9 +9,11 @@ If the user didn't specify a tag, ask: *"Which tag? (`latest`, `31.0`, `30.2`)"*
 **Deploy:**
 
 ```bash
-bash {baseDir}/scripts/deploy-bitcoin.sh $BTC_TAG
+bash {baseDir}/scripts/deploy-bitcoin.sh $BTC_TAG [data-dir] [network] [rpc-bind-mode] [wireguard-ip]
 export BITCOIN_IPC_PATH="$HOME/.sv2pi/bitcoin/data/node.sock"
 ```
+
+`rpc-bind-mode` defaults to `localhost` and can be `wireguard` when the operator wants RPC reachable over WireGuard only.
 
 After running the script, export the IPC path and proceed to the next deployment. Do NOT probe the deployment (no curl health checks, no `ls -la node.sock`, no `bitcoin-cli`). The script succeeds = deployment succeeded. The host data dir is root-owned (Docker volumes), so `ls` from the host user will fail — this is normal and irrelevant; SRI containers run as root.
 
