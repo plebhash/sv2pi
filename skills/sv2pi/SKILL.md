@@ -113,6 +113,8 @@ Use all four sources together. The vault gives durable cross-session context and
 
 All domain files live under `{baseDir}/domains/`. Load with `read {baseDir}/domains/<file>`.
 
+When changing monitoring bind mode or WireGuard exposure for pool APIs, also read `pool-monitor.md` to keep `sv2pi-pool-monitor.service` probe host (`SV2PI_POOL_MONITOR_API_HOST`) aligned with the active bind address.
+
 Before deployment actions, perform a quick vault check (read `$HOME/vault/README.md` for binding directives). For health diagnosis, crash investigation, or topology questions, read the vault domain and then re-validate live state. Before role-specific crash diagnosis, read the relevant role domain.
 
 ---

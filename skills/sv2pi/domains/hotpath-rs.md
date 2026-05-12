@@ -90,6 +90,10 @@ Flags:
 - `--hotpath-wireguard-relays` — force WireGuard relays for profiler+MCP endpoints
 - `--no-hotpath-wireguard-relays` — keep profiler+MCP localhost-only even when monitoring uses WireGuard
 
+If automated pool monitoring is enabled, keep `SV2PI_POOL_MONITOR_API_HOST` aligned with monitoring bind mode to avoid false zero reports:
+- `--monitoring-localhost` -> `SV2PI_POOL_MONITOR_API_HOST=127.0.0.1`
+- `--monitoring-wireguard <ip>` -> `SV2PI_POOL_MONITOR_API_HOST=<ip>`
+
 `BITCOIN_IPC_PATH` can be set in the environment to pre-seed the IPC socket path.
 `MONITORING_BIND_MODE` and `MONITORING_BIND_IP` can also be supplied via environment variables.
 `HOTPATH_WG_RELAYS_MODE` accepts `auto|on|off` (default: `auto`; enables relays automatically in WireGuard mode).

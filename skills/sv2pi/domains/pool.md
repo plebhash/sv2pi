@@ -25,6 +25,10 @@ bash {baseDir}/scripts/deploy-pool.sh $DEPLOY_TAG $BITCOIN_IPC_PATH [config-dir]
 
 `monitoring-bind-mode` defaults to `localhost` and can be set to `wireguard` to expose port `9090` only on a WireGuard address. Mining/JDS ports (`3333`/`3334`) stay on `0.0.0.0`.
 
+When pool monitoring is enabled via `sv2pi-pool-monitor.service`, keep the probe host aligned with bind mode:
+- localhost mode: use default `SV2PI_POOL_MONITOR_API_HOST=127.0.0.1`
+- wireguard mode: set `SV2PI_POOL_MONITOR_API_HOST=<wireguard-ip>`
+
 If the user's request is vague (e.g. "deploy a pool"), walk them through each configuration choice from the frozen Docker config template, offering the default value each time. Key parameters:
 
 ```

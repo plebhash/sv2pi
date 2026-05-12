@@ -109,13 +109,14 @@ After deploying, verify:
 ```bash
 systemctl --user is-enabled sv2pi-pool-monitor.timer
 systemctl --user is-active sv2pi-pool-monitor.timer
+systemctl --user show sv2pi-pool-monitor.service -p Environment
 
 test -s ~/vault/pool-monitor/hashrate.jsonl
 test -s ~/vault/pool-monitor/index.md
 test -s ~/vault/pool-monitor/latest.md
 test -s ~/vault/pool-hashrate.png
 
-curl -sf http://127.0.0.1:9090/api/v1/health
+curl -sf http://<monitoring-host>:9090/api/v1/health
 ```
 
 If published via Quartz, also verify:
@@ -128,6 +129,8 @@ curl -sw '%{http_code} %{content_type}\n' -o /dev/null http://10.0.0.1:4028/pool
 ```
 
 ### Diagnostics
+
+If API probing fails, treat the sample as a probe failure and investigate host/bind mismatch. Do not interpret fallback zeros as real pool state.
 
 Operational failures are logged in the systemd journal:
 
