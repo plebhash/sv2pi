@@ -298,6 +298,7 @@ fi
 HOTPATH_TAG="v${VERSION}-hotpath-rs"
 HOTPATH_CLONE="/tmp/sv2-apps-hotpath-v${VERSION}"
 HOTPATH_CONFIG_RENDER_ROOT="/tmp/sv2pi-hotpath-config-v${VERSION}"
+HOTPATH_COMPOSE_FILE="$HOTPATH_CLONE/docker/docker-compose.yml"
 
 render_monitoring_config() {
     src="$1"
@@ -325,6 +326,50 @@ else:
 
 cfg_path.write_text(text)
 PY
+}
+
+render_hotpath_compose() {
+    src="$1"
+    dst="$2"
+    health_host="$3"
+
+    mkdir -p "$(dirname "$dst")"
+    cp "$src" "$dst"
+
+    python3 - "$dst" "$health_host" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+compose_path = Path(sys.argv[1])
+health_host = sys.argv[2]
+text = compose_path.read_text()
+
+for port in (9090, 9091, 9092):
+    text = re.sub(
+        rf"http://localhost:{port}/api/v1/health",
+        f"http://{health_host}:{port}/api/v1/health",
+        text,
+    )
+
+compose_path.write_text(text)
+PY
+}
+
+prepare_hotpath_compose_file() {
+    local source_compose="$HOTPATH_CLONE/docker/docker-compose.yml"
+
+    if [ ! -f "$source_compose" ]; then
+        echo "ERROR: hotpath compose file not found: $source_compose"
+        echo "  Run without --no-build at least once to clone/fetch the hotpath repo."
+        exit 1
+    fi
+
+    HOTPATH_COMPOSE_FILE="$source_compose"
+    if [ "$MONITORING_BIND_MODE" = "wireguard" ]; then
+        HOTPATH_COMPOSE_FILE="$HOTPATH_CONFIG_RENDER_ROOT/docker-compose.wireguard.yml"
+        render_hotpath_compose "$source_compose" "$HOTPATH_COMPOSE_FILE" "$MONITORING_HOST_BIND"
+    fi
 }
 
 CONFIG_POOL_EFFECTIVE="$CONFIG_POOL"
@@ -362,6 +407,7 @@ docker rm -f $SERVICE_NAMES 2>/dev/null || true
 
 if [ "$NO_BUILD" = true ]; then
     echo "=== Skipping build (--no-build) ==="
+    prepare_hotpath_compose_file
 else
     if [ -d "$HOTPATH_CLONE/.git" ]; then
         if [ "$NO_RESET" = true ]; then
@@ -379,6 +425,8 @@ echo "=== Updating clone to $HOTPATH_TAG ==="
             git -c http.version=HTTP/1.1 clone --branch "$HOTPATH_TAG" --depth 1 https://github.com/SV2-bot/sv2-apps "$HOTPATH_CLONE"
     fi
 
+    prepare_hotpath_compose_file
+
     BUILD_ARGS=()
     if [ "$NO_CACHE" = true ]; then
         BUILD_ARGS+=(--no-cache)
@@ -388,7 +436,7 @@ echo "=== Updating clone to $HOTPATH_TAG ==="
     fi
 
     echo "=== Building hotpath images ==="
-    docker compose -f "$HOTPATH_CLONE/docker/docker-compose.yml" build "${BUILD_ARGS[@]}" $SERVICE_NAMES
+    docker compose -f "$HOTPATH_COMPOSE_FILE" build "${BUILD_ARGS[@]}" $SERVICE_NAMES
 
     echo "=== Validating built images ==="
     for svc in "${SERVICES[@]}"; do
@@ -407,7 +455,7 @@ if [ "$BUILD_ONLY" = true ]; then
 fi
 
 echo "=== Starting hotpath-enabled services ==="
-docker compose -f "$HOTPATH_CLONE/docker/docker-compose.yml" up -d $SERVICE_NAMES
+docker compose -f "$HOTPATH_COMPOSE_FILE" up -d $SERVICE_NAMES
 
 echo "=== Reconciling WireGuard hotpath relays ==="
 for svc in "${SERVICES[@]}"; do

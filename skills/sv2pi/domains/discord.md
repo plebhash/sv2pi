@@ -422,6 +422,7 @@ Relevant environment variables:
 SV2PI_POOL_MONITOR_DISCORD=0                 # disable Discord posting
 SV2PI_POOL_MONITOR_DISCORD_CHANNEL_ID=<id>   # override target channel
 SV2PI_PICORD_ENV=<path>                      # override Picord env file
+SV2PI_POOL_MONITOR_API_HOST=<host>           # pool API probe host (default 127.0.0.1; never 0.0.0.0)
 ```
 
 Canonical report style is documented in `{baseDir}/domains/pool-monitor.md`. Preserve that style: concise SRI-branded header, no tables, inline-code values, attached PNG silently, no implementation-status footer.

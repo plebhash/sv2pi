@@ -12,6 +12,12 @@ INDEX_FILE="$MONITOR_DIR/index.md"
 DISCORD_CHANNEL_ID="${SV2PI_POOL_MONITOR_DISCORD_CHANNEL_ID:-1501133804058710116}"
 PICORD_ENV_FILE="${SV2PI_PICORD_ENV:-/home/sv2bot/.picord/.env}"
 DISCORD_POST_ENABLED="${SV2PI_POOL_MONITOR_DISCORD:-1}"
+POOL_API_HOST="${SV2PI_POOL_MONITOR_API_HOST:-127.0.0.1}"
+
+if [ "$POOL_API_HOST" = "0.0.0.0" ]; then
+    echo "pool-monitor: SV2PI_POOL_MONITOR_API_HOST must not be 0.0.0.0; use localhost, 127.0.0.1, or a WireGuard IP" >&2
+    exit 1
+fi
 
 format_hashrate() {
     local rate="$1"
@@ -165,7 +171,7 @@ MSGEOF
 
 mkdir -p "$SNAPSHOT_DIR" "$PLOTS_DIR"
 
-MAINNET_API="http://127.0.0.1:9090/api/v1"
+MAINNET_API="http://${POOL_API_HOST}:9090/api/v1"
 
 TIMESTAMP_UTC=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 TIMESTAMP_FILE=$(date -u +"%Y%m%d_%H%M%S")

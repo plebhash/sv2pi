@@ -4,7 +4,7 @@ Automated hashrate monitoring via the pool's HTTP API (port 9090). Two scripts w
 
 ### Scripts
 
-- **`{baseDir}/scripts/pool-monitor.sh`** — probes `http://127.0.0.1:9090/api/v1/global` and `api/v1/clients` to collect pool state: uptime, client count, channel count, and aggregate hashrate. Saves raw JSON snapshots, appends a structured hashrate log, and generates a human-readable dashboard page (`index.md`) for Quartz publishing.
+- **`{baseDir}/scripts/pool-monitor.sh`** — probes `http://<monitoring-host>:9090/api/v1/global` and `api/v1/clients` to collect pool state: uptime, client count, channel count, and aggregate hashrate. `monitoring-host` defaults to `127.0.0.1` and can be overridden with `SV2PI_POOL_MONITOR_API_HOST` (for example, to a WireGuard IP). `0.0.0.0` is invalid for probes and is rejected. Saves raw JSON snapshots, appends a structured hashrate log, and generates a human-readable dashboard page (`index.md`) for Quartz publishing.
 - **`{baseDir}/scripts/plot-pool-hashrate.py`** — reads the vault's hashrate log and renders a log-scale hashrate-over-time PNG chart (dark theme, UTC-labeled x-axis). Requires `matplotlib` and `numpy`.
 
 ### Vault layout
@@ -82,6 +82,25 @@ WantedBy=timers.target
 ```
 
 **Note:** manual samples triggered during setup may produce close-together readings. This is normal — the steady-state interval is every 2 hours.
+
+Set the probe host explicitly in the user service environment when monitoring is not localhost-bound:
+
+```bash
+systemctl --user edit sv2pi-pool-monitor.service
+```
+
+```ini
+[Service]
+Environment=SV2PI_POOL_MONITOR_API_HOST=127.0.0.1
+# or: Environment=SV2PI_POOL_MONITOR_API_HOST=10.x.y.z   # WireGuard IP
+```
+
+Then reload and run once:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user restart sv2pi-pool-monitor.service
+```
 
 ### Verification checklist
 

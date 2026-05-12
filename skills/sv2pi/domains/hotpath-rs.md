@@ -42,6 +42,7 @@ Each service exposes profiler and MCP endpoints on the host via host networking:
 
 Standard data ports (3333, 34265, 34255) remain unchanged. Monitoring ports (9090, 9091, 9092) follow bind policy: `localhost` by default, or explicit WireGuard IP when requested.
 When monitoring bind mode is `wireguard`, `deploy-hotpath.sh` now creates WireGuard-bound relay containers for hotpath profiler and MCP endpoints by default.
+In that mode, deploy-hotpath also rewrites compose healthchecks to probe the configured WireGuard monitoring host instead of `localhost`, avoiding false `unhealthy` status.
 
 #### Translator Config
 
