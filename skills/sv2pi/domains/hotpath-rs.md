@@ -41,6 +41,7 @@ Each service exposes profiler and MCP endpoints on the host via host networking:
 | tproxy (translator_sv2) | 6783 | 6793 | `network_mode: host`, `HOTPATH_METRICS_PORT=6783`, `HOTPATH_MCP_PORT=6793` |
 
 Standard data ports (3333, 34265, 34255) remain unchanged. Monitoring ports (9090, 9091, 9092) follow bind policy: `localhost` by default, or explicit WireGuard IP when requested.
+When monitoring bind mode is `wireguard`, `deploy-hotpath.sh` now creates WireGuard-bound relay containers for hotpath profiler and MCP endpoints by default.
 
 #### Translator Config
 
@@ -85,9 +86,13 @@ Flags:
 - `--check` — validate prerequisites only, no build or deploy
 - `--monitoring-localhost` — bind monitoring APIs to localhost only (default)
 - `--monitoring-wireguard <ip>` — bind monitoring APIs to a WireGuard IP
+- `--hotpath-wireguard-relays` — force WireGuard relays for profiler+MCP endpoints
+- `--no-hotpath-wireguard-relays` — keep profiler+MCP localhost-only even when monitoring uses WireGuard
 
 `BITCOIN_IPC_PATH` can be set in the environment to pre-seed the IPC socket path.
 `MONITORING_BIND_MODE` and `MONITORING_BIND_IP` can also be supplied via environment variables.
+`HOTPATH_WG_RELAYS_MODE` accepts `auto|on|off` (default: `auto`; enables relays automatically in WireGuard mode).
+`HOTPATH_GIT_RETRY_ATTEMPTS` controls retry attempts for clone/fetch (default: `5`).
 
 Service keywords (`pool`, `jdc`, `translator`) are optional. If none are specified, all three are deployed. Examples:
 
@@ -106,33 +111,44 @@ This:
 - Checks that standard config files exist for the requested services
 - Stops existing containers for the requested services
 - Clones `SV2-bot/sv2-apps` at tag `v$VERSION-hotpath-rs` (shallow, cached at `/tmp/sv2-apps-hotpath-v$VERSION`)
+- Retries git clone/fetch automatically with exponential backoff for transient TLS/network failures
 - Runs `docker compose build` for the requested services
 - Validates built images with `docker image inspect`
 - Runs `docker compose up -d` to start only the requested services
+- Reconciles WireGuard relay containers for profiler and MCP endpoints (enabled by default in WireGuard mode)
+
+For standalone relay management (including non-hotpath workflows), use:
+
+```bash
+bash {baseDir}/scripts/hotpath-wireguard-relays.sh up 10.0.0.1 pool translator
+bash {baseDir}/scripts/hotpath-wireguard-relays.sh verify 10.0.0.1 pool translator
+bash {baseDir}/scripts/hotpath-wireguard-relays.sh status pool translator
+bash {baseDir}/scripts/hotpath-wireguard-relays.sh down pool translator
+```
 
 #### Viewing Profiling Data
 
 The profiler exposes HTTP endpoints. Non-interactive verification:
 
 ```bash
-curl -s http://localhost:6783/profiler_status   # uptime and status
-curl -s http://localhost:6783/threads            # thread CPU + RSS
+curl -s http://<hotpath-host>:6783/profiler_status   # uptime and status
+curl -s http://<hotpath-host>:6783/threads            # thread CPU + RSS
 ```
 
 MCP endpoints are exposed at `/mcp`:
 
 ```bash
-curl -i http://localhost:6791/mcp
-curl -i http://localhost:6792/mcp
-curl -i http://localhost:6793/mcp
+curl -i http://<hotpath-host>:6791/mcp
+curl -i http://<hotpath-host>:6792/mcp
+curl -i http://<hotpath-host>:6793/mcp
 ```
 
 For agents supporting MCP over HTTP, register endpoints directly:
 
 ```bash
-claude mcp add --transport http hotpath-pool http://localhost:6791/mcp
-claude mcp add --transport http hotpath-jdc http://localhost:6792/mcp
-claude mcp add --transport http hotpath-tproxy http://localhost:6793/mcp
+claude mcp add --transport http hotpath-pool http://<hotpath-host>:6791/mcp
+claude mcp add --transport http hotpath-jdc http://<hotpath-host>:6792/mcp
+claude mcp add --transport http hotpath-tproxy http://<hotpath-host>:6793/mcp
 ```
 
 For interactive live profiling, install the hotpath TUI client:
@@ -180,27 +196,28 @@ curl -sf http://<monitoring-host>:9092/api/v1/health | python3 -m json.tool
 ```
 
 Use `monitoring-host=localhost` for localhost mode, or the configured WireGuard IP when `--monitoring-wireguard` is used.
+Use `hotpath-host=localhost` unless WireGuard relays are enabled (default in WireGuard mode), then use the configured WireGuard IP.
 
 Verify profiler HTTP endpoints:
 
 ```bash
-curl -sf http://localhost:6781/profiler_status && echo "pool profiler OK"
-curl -sf http://localhost:6782/profiler_status && echo "JDC profiler OK"
-curl -sf http://localhost:6783/profiler_status && echo "translator profiler OK"
+curl -sf http://<hotpath-host>:6781/profiler_status && echo "pool profiler OK"
+curl -sf http://<hotpath-host>:6782/profiler_status && echo "JDC profiler OK"
+curl -sf http://<hotpath-host>:6783/profiler_status && echo "translator profiler OK"
 ```
 
 Verify MCP endpoints:
 
 ```bash
-curl -i http://localhost:6791/mcp
-curl -i http://localhost:6792/mcp
-curl -i http://localhost:6793/mcp
+curl -i http://<hotpath-host>:6791/mcp
+curl -i http://<hotpath-host>:6792/mcp
+curl -i http://<hotpath-host>:6793/mcp
 ```
 
 Verify CPU and memory profiling data:
 
 ```bash
-curl -sf http://localhost:6783/threads | python3 -m json.tool | head -40
+curl -sf http://<hotpath-host>:6783/threads | python3 -m json.tool | head -40
 ```
 
 Verify profiling data flows (requires `cargo install hotpath --features=tui --locked`):
