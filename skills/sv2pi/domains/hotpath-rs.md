@@ -127,6 +127,28 @@ bash {baseDir}/scripts/hotpath-wireguard-relays.sh status pool translator
 bash {baseDir}/scripts/hotpath-wireguard-relays.sh down pool translator
 ```
 
+#### WireGuard Relay Backend Policy
+
+Use exactly one relay backend for hotpath WireGuard ports (`6781/6782/6783/6791/6792/6793`):
+- Docker-managed relays (`sv2pi_hotpath_relay_*`) via `deploy-hotpath.sh` / `hotpath-wireguard-relays.sh`, or
+- legacy systemd Python relays (`sv2pi-hotpath-relay-*.service`).
+
+Do not run both at once. If both backends try to bind the same WireGuard IP and port, Docker relay containers will flap with `Address in use`.
+
+`deploy-hotpath.sh` now fails fast when legacy relay units are detected in WireGuard relay mode. Migrate manually before redeploy:
+
+```bash
+systemctl --user stop sv2pi-hotpath-relay-6781.service sv2pi-hotpath-relay-6782.service sv2pi-hotpath-relay-6783.service sv2pi-hotpath-relay-6791.service sv2pi-hotpath-relay-6792.service sv2pi-hotpath-relay-6793.service
+systemctl --user disable sv2pi-hotpath-relay-6781.service sv2pi-hotpath-relay-6782.service sv2pi-hotpath-relay-6783.service sv2pi-hotpath-relay-6791.service sv2pi-hotpath-relay-6792.service sv2pi-hotpath-relay-6793.service
+```
+
+Then rerun hotpath deployment and verify listeners:
+
+```bash
+ss -ltnp | rg -n ':(6781|6782|6783|6791|6792|6793)\b'
+docker ps --filter 'name=sv2pi_hotpath_relay_'
+```
+
 #### Viewing Profiling Data
 
 The profiler exposes HTTP endpoints. Non-interactive verification:

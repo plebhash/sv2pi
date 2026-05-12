@@ -196,6 +196,97 @@ teardown_hotpath_relay() {
     docker rm -f "$name" >/dev/null 2>&1 || true
 }
 
+relay_specs_for_service() {
+    case "$1" in
+        pool_sv2)
+            printf 'pool 6781\npool 6791\n'
+            ;;
+        jd_client_sv2)
+            printf 'jdc 6782\njdc 6792\n'
+            ;;
+        translator_sv2)
+            printf 'translator 6783\ntranslator 6793\n'
+            ;;
+    esac
+}
+
+port_bind_available() {
+    python3 - "$1" "$2" <<'PY'
+import socket
+import sys
+
+host = sys.argv[1]
+port = int(sys.argv[2])
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+try:
+    s.bind((host, port))
+except OSError:
+    sys.exit(1)
+finally:
+    s.close()
+PY
+}
+
+fail_legacy_relay_units() {
+    [ "$HOTPATH_WG_RELAYS_ENABLED" = true ] || return 0
+    command -v systemctl >/dev/null 2>&1 || return 0
+
+    local found_units=""
+    local role port unit
+    while read -r role port; do
+        [ -n "$role" ] || continue
+        unit="sv2pi-hotpath-relay-${port}.service"
+        if systemctl --user is-active --quiet "$unit" || systemctl --user is-enabled --quiet "$unit"; then
+            found_units="${found_units} ${unit}"
+        fi
+    done < <(
+        for svc in "${SERVICES[@]}"; do
+            relay_specs_for_service "$svc"
+        done
+    )
+
+    if [ -n "$found_units" ]; then
+        echo "ERROR: legacy systemd WireGuard relay units detected:${found_units}"
+        echo "  deploy-hotpath uses Docker-managed relays; only one relay backend may own the WireGuard ports."
+        echo "  Resolve manually, then rerun this command:"
+        echo "    systemctl --user stop${found_units}"
+        echo "    systemctl --user disable${found_units}"
+        exit 1
+    fi
+}
+
+fail_port_collisions() {
+    [ "$HOTPATH_WG_RELAYS_ENABLED" = true ] || return 0
+
+    local role port relay_name
+    while read -r role port; do
+        [ -n "$role" ] || continue
+        relay_name="$(relay_container_name "$role" "$port")"
+        if docker ps -a --filter "name=^/${relay_name}$" --format '{{.Names}}' | grep -q "^${relay_name}$"; then
+            continue
+        fi
+
+        if ! port_bind_available "$MONITORING_HOST_BIND" "$port"; then
+            echo "ERROR: ${MONITORING_HOST_BIND}:${port} is already in use; cannot start relay container ${relay_name}."
+            echo "  Ensure only one WireGuard relay backend is active (Docker relays or legacy systemd relays)."
+            echo "  Hint: check listeners with: ss -ltnp | rg ':${port}\\b'"
+            exit 1
+        fi
+    done < <(
+        for svc in "${SERVICES[@]}"; do
+            relay_specs_for_service "$svc"
+        done
+    )
+}
+
+preflight_wireguard_relay_backend() {
+    [ "$HOTPATH_WG_RELAYS_ENABLED" = true ] || return 0
+    fail_legacy_relay_units
+    fail_port_collisions
+}
+
 run_with_retry() {
     description="$1"
     shift
@@ -289,6 +380,8 @@ for svc in "${SERVICES[@]}"; do
             ;;
     esac
 done
+
+preflight_wireguard_relay_backend
 
 if [ "$CHECK_ONLY" = true ]; then
     echo "=== Pre-flight check passed ==="
