@@ -4,7 +4,7 @@ Automated hashrate monitoring via the pool's HTTP API (port 9090). Two scripts w
 
 ### Scripts
 
-- **`{baseDir}/scripts/pool-monitor.sh`** — probes `http://<monitoring-host>:9090/api/v1/global` and `api/v1/clients` to collect pool state: uptime, client count, channel count, and aggregate hashrate. `monitoring-host` defaults to `127.0.0.1` and can be overridden with `SV2PI_POOL_MONITOR_API_HOST` (for example, to a WireGuard IP). `0.0.0.0` is invalid for probes and is rejected. Saves raw JSON snapshots, appends a structured hashrate log, and generates a human-readable dashboard page (`index.md`) for Quartz publishing.
+- **`{baseDir}/scripts/pool-monitor.sh`** — probes `http://<monitoring-host>:9090/api/v1/global` and `api/v1/clients` to collect pool state: uptime, client count, channel count, and aggregate hashrate. `monitoring-host` can be set explicitly with `SV2PI_POOL_MONITOR_API_HOST` (recommended) and otherwise auto-detects from `~/.sv2pi/pool/config/pool-config.toml` (`monitoring_address`), falling back to `127.0.0.1`. `0.0.0.0` is invalid for probes and is rejected. On API probe failure, the script exits non-zero instead of writing a false zero sample. Saves raw JSON snapshots, appends a structured hashrate log, and generates a human-readable dashboard page (`index.md`) for Quartz publishing.
 - **`{baseDir}/scripts/plot-pool-hashrate.py`** — reads the vault's hashrate log and renders a log-scale hashrate-over-time PNG chart (dark theme, UTC-labeled x-axis). Requires `matplotlib` and `numpy`.
 
 ### Vault layout
@@ -130,7 +130,7 @@ curl -sw '%{http_code} %{content_type}\n' -o /dev/null http://10.0.0.1:4028/pool
 
 ### Diagnostics
 
-If API probing fails, treat the sample as a probe failure and investigate host/bind mismatch. Do not interpret fallback zeros as real pool state.
+If API probing fails, the script exits non-zero and does not append a sample. Treat this as a probe failure and investigate host/bind mismatch.
 
 Operational failures are logged in the systemd journal:
 

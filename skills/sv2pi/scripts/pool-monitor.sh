@@ -12,12 +12,49 @@ INDEX_FILE="$MONITOR_DIR/index.md"
 DISCORD_CHANNEL_ID="${SV2PI_POOL_MONITOR_DISCORD_CHANNEL_ID:-1501133804058710116}"
 PICORD_ENV_FILE="${SV2PI_PICORD_ENV:-/home/sv2bot/.picord/.env}"
 DISCORD_POST_ENABLED="${SV2PI_POOL_MONITOR_DISCORD:-1}"
-POOL_API_HOST="${SV2PI_POOL_MONITOR_API_HOST:-127.0.0.1}"
+POOL_CONFIG_FILE="${SV2PI_POOL_CONFIG_FILE:-$HOME/.sv2pi/pool/config/pool-config.toml}"
 
-if [ "$POOL_API_HOST" = "0.0.0.0" ]; then
+if [ "${SV2PI_POOL_MONITOR_API_HOST:-}" = "0.0.0.0" ]; then
     echo "pool-monitor: SV2PI_POOL_MONITOR_API_HOST must not be 0.0.0.0; use localhost, 127.0.0.1, or a WireGuard IP" >&2
     exit 1
 fi
+
+detect_pool_api_host() {
+    if [ -n "${SV2PI_POOL_MONITOR_API_HOST:-}" ]; then
+        printf '%s\n' "$SV2PI_POOL_MONITOR_API_HOST"
+        return 0
+    fi
+    if [ ! -s "$POOL_CONFIG_FILE" ]; then
+        printf '127.0.0.1\n'
+        return 0
+    fi
+    python3 - "$POOL_CONFIG_FILE" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+text = Path(sys.argv[1]).read_text()
+match = re.search(r'(?m)^\s*monitoring_address\s*=\s*"([^"]+)"\s*$', text)
+if not match:
+    print("127.0.0.1")
+    raise SystemExit(0)
+
+address = match.group(1).strip()
+host = address
+if address.startswith("["):
+    end = address.find("]")
+    if end != -1:
+        host = address[1:end]
+elif ":" in address:
+    host = address.rsplit(":", 1)[0]
+
+if host in ("", "0.0.0.0", "::"):
+    host = "127.0.0.1"
+print(host)
+PY
+}
+
+POOL_API_HOST="$(detect_pool_api_host)"
 
 format_hashrate() {
     local rate="$1"
@@ -177,6 +214,10 @@ TIMESTAMP_UTC=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 TIMESTAMP_FILE=$(date -u +"%Y%m%d_%H%M%S")
 
 POOL_GLOBAL=$(curl -s "${MAINNET_API}/global" 2>/dev/null || echo '{}')
+if [ "$POOL_GLOBAL" = "{}" ]; then
+    echo "pool-monitor: failed to query ${MAINNET_API}/global" >&2
+    exit 1
+fi
 CLIENTS_COUNT=$(echo "$POOL_GLOBAL" | jq -r '.sv2_clients.total_clients // 0')
 CLIENTS_HR=$(echo "$POOL_GLOBAL" | jq -r '.sv2_clients.total_hashrate // 0')
 CHANNELS_TOTAL=$(echo "$POOL_GLOBAL" | jq -r '.sv2_clients.total_channels // 0')
@@ -186,6 +227,10 @@ UPTIME=$(echo "$POOL_GLOBAL" | jq -r '.uptime_secs // 0')
 CLIENTS_LIMIT=$((CLIENTS_COUNT > 0 ? CLIENTS_COUNT : 1))
 
 POOL_CLIENTS=$(curl -s "${MAINNET_API}/clients?limit=${CLIENTS_LIMIT}" 2>/dev/null || echo '{}')
+if [ "$POOL_CLIENTS" = "{}" ]; then
+    echo "pool-monitor: failed to query ${MAINNET_API}/clients?limit=${CLIENTS_LIMIT}" >&2
+    exit 1
+fi
 
 echo "$POOL_GLOBAL" > "$SNAPSHOT_DIR/${TIMESTAMP_FILE}_pool-global.json"
 echo "$POOL_CLIENTS" > "$SNAPSHOT_DIR/${TIMESTAMP_FILE}_pool-clients.json"
