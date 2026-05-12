@@ -19,16 +19,10 @@ if [ "${SV2PI_POOL_MONITOR_API_HOST:-}" = "0.0.0.0" ]; then
     exit 1
 fi
 
-detect_pool_api_host() {
-    if [ -n "${SV2PI_POOL_MONITOR_API_HOST:-}" ]; then
-        printf '%s\n' "$SV2PI_POOL_MONITOR_API_HOST"
-        return 0
-    fi
-    if [ ! -s "$POOL_CONFIG_FILE" ]; then
-        printf '127.0.0.1\n'
-        return 0
-    fi
-    python3 - "$POOL_CONFIG_FILE" <<'PY'
+parse_monitoring_host() {
+    local cfg="$1"
+    [ -s "$cfg" ] || return 1
+    python3 - "$cfg" <<'PY'
 import re
 import sys
 from pathlib import Path
@@ -36,8 +30,7 @@ from pathlib import Path
 text = Path(sys.argv[1]).read_text()
 match = re.search(r'(?m)^\s*monitoring_address\s*=\s*"([^"]+)"\s*$', text)
 if not match:
-    print("127.0.0.1")
-    raise SystemExit(0)
+    raise SystemExit(1)
 
 address = match.group(1).strip()
 host = address
@@ -49,9 +42,51 @@ elif ":" in address:
     host = address.rsplit(":", 1)[0]
 
 if host in ("", "0.0.0.0", "::"):
-    host = "127.0.0.1"
+    raise SystemExit(1)
+
 print(host)
 PY
+}
+
+latest_hotpath_pool_config() {
+    python3 - <<'PY'
+from pathlib import Path
+
+root = Path('/tmp')
+candidates = []
+for cfg in root.glob('sv2pi-hotpath-config-v*/pool/pool-config.toml'):
+    try:
+        if cfg.is_file():
+            candidates.append((cfg.stat().st_mtime, cfg))
+    except OSError:
+        pass
+
+if candidates:
+    candidates.sort(reverse=True)
+    print(candidates[0][1])
+PY
+}
+
+detect_pool_api_host() {
+    local host
+    if [ -n "${SV2PI_POOL_MONITOR_API_HOST:-}" ]; then
+        printf '%s\n' "$SV2PI_POOL_MONITOR_API_HOST"
+        return 0
+    fi
+
+    if host=$(parse_monitoring_host "$POOL_CONFIG_FILE" 2>/dev/null); then
+        printf '%s\n' "$host"
+        return 0
+    fi
+
+    local hotpath_cfg
+    hotpath_cfg=$(latest_hotpath_pool_config)
+    if [ -n "$hotpath_cfg" ] && host=$(parse_monitoring_host "$hotpath_cfg" 2>/dev/null); then
+        printf '%s\n' "$host"
+        return 0
+    fi
+
+    printf '127.0.0.1\n'
 }
 
 POOL_API_HOST="$(detect_pool_api_host)"
