@@ -150,24 +150,17 @@ build_discord_client_summary() {
             displayed_count=$max_channels_per_client
         fi
         channel_lines=$(echo "$channels" | jq -r --argjson max "$max_channels_per_client" '
-            ([.extended_channels[]? | {kind:"ext", id:.channel_id, hr:(.nominal_hashrate // 0), shares:(.shares_accepted // null), best:(.best_diff // null), user:(.user_identity // "")}] +
-             [.standard_channels[]? | {kind:"std", id:.channel_id, hr:(.nominal_hashrate // 0), shares:(.shares_accepted // null), best:(.best_diff // null), user:(.user_identity // "")}])[:$max] |
+            ([.extended_channels[]? | {kind:"ext", id:.channel_id, hr:(.nominal_hashrate // 0), user:(.user_identity // "")}] +
+             [.standard_channels[]? | {kind:"std", id:.channel_id, hr:(.nominal_hashrate // 0), user:(.user_identity // "")}])[:$max] |
             to_entries[] |
-            [.key, .value.id, .value.kind, .value.hr, (.value.shares // ""), (.value.best // ""), .value.user] | @tsv
-        ' | while IFS=$'\t' read -r ch_idx ch_id ch_kind ch_hr ch_shares ch_best ch_user; do
+            [.key, .value.id, .value.kind, .value.hr, .value.user] | @tsv
+        ' | while IFS=$'\t' read -r ch_idx ch_id ch_kind ch_hr ch_user; do
             ch_hr_fmt=$(format_hashrate "$ch_hr")
             connector="├─"
             if [ "$displayed_count" -gt 0 ] && [ "$ch_idx" -eq $((displayed_count - 1)) ] && [ "$channel_count" -le "$max_channels_per_client" ]; then
                 connector="└─"
             fi
             line="      ${connector} Ch \`${ch_id}\` (${ch_kind}): \`${ch_hr_fmt%% *}\` ${ch_hr_fmt#* }"
-            if [ -n "$ch_shares" ]; then
-                line="${line} | shares \`${ch_shares}\`"
-            fi
-            if [ -n "$ch_best" ]; then
-                ch_best_int=$(printf '%.0f' "$ch_best")
-                line="${line} | best diff \`${ch_best_int}\`"
-            fi
             if [ -n "$ch_user" ]; then
                 line="${line} | \`${ch_user}\`"
             fi
