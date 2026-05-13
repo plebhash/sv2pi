@@ -52,7 +52,7 @@ When `pool-monitor.sh` posts automated Discord reports, keep the message compact
 - Do not include a visible attachment-label line such as `pool-hashrate.png attached`; attach the PNG silently.
 - Use bold labels for top-level fields and inline-code formatting for values:
   - `**🤑 Blocks Found:** \`0\``
-  - `**⏳ Uptime:** \`2d 16h 38m\``
+  - `**🏆 Uptime:** \`2d 16h 38m\``
   - `**🧑‍🤝‍🧑 Clients:** \`3\``
   - `**🔀 Channels:** \`1\` (\`1\` ext, \`0\` std)`
   - `**❤️‍🔥 Hashrate:** \`6.75\` TH/s`
