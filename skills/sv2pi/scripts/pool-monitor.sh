@@ -119,6 +119,43 @@ format_duration() {
     fi
 }
 
+fetch_blocks_found_total() {
+    local metrics metric_line
+    metrics=$(curl -s "http://${POOL_API_HOST}:9090/metrics" 2>/dev/null || true)
+    [ -n "$metrics" ] || {
+        printf '0\n'
+        return 0
+    }
+
+    metric_line=$(printf '%s\n' "$metrics" | python3 - <<'PY'
+import re
+import sys
+
+value = None
+for line in sys.stdin:
+    line = line.strip()
+    if not line or line.startswith('#'):
+        continue
+    match = re.match(r'^sv2_server_blocks_found_total(?:\{[^}]*\})?\s+([0-9]+(?:\.[0-9]+)?)$', line)
+    if match:
+        value = match.group(1)
+        break
+
+print(value or '0')
+PY
+)
+
+    python3 - "$metric_line" <<'PY'
+import sys
+
+raw = (sys.argv[1] if len(sys.argv) > 1 else '0').strip()
+try:
+    print(int(float(raw)))
+except Exception:
+    print(0)
+PY
+}
+
 build_discord_client_summary() {
     local client_lines=""
     local idle_count=0
@@ -211,13 +248,15 @@ PY
 )
     [ -n "$token" ] || return 0
 
-    local pretty_hashrate uptime_pretty client_summary content payload tmp_response http_code
+    local pretty_hashrate uptime_pretty blocks_found client_summary content payload tmp_response http_code
     pretty_hashrate=$(format_hashrate "$CLIENTS_HR")
     uptime_pretty=$(format_duration "$UPTIME")
+    blocks_found=$(fetch_blocks_found_total)
     client_summary=$(build_discord_client_summary)
     content=$(cat <<MSGEOF
 **📊 SRI Pool Stats 🤖⛏️**
 
+**🤑 Blocks Found:** \`$blocks_found\`
 **⏳ Uptime:** \`$uptime_pretty\`
 **🧑‍🤝‍🧑 Clients:** \`$CLIENTS_COUNT\`
 **🔀 Channels:** \`$CHANNELS_TOTAL\` (\`$CHANNELS_EXT\` ext, \`$CHANNELS_STD\` std)
