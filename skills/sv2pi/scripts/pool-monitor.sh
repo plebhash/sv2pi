@@ -218,10 +218,10 @@ PY
     content=$(cat <<MSGEOF
 **📊 SRI Pool Stats 🤖⛏️**
 
-**Uptime:** \`$uptime_pretty\`
-**Clients:** \`$CLIENTS_COUNT\`
-**Channels:** \`$CHANNELS_TOTAL\` (\`$CHANNELS_EXT\` ext, \`$CHANNELS_STD\` std)
-**Hashrate:** \`${pretty_hashrate%% *}\` ${pretty_hashrate#* }${client_summary}
+**⏳ Uptime:** \`$uptime_pretty\`
+**🧑‍🤝‍🧑 Clients:** \`$CLIENTS_COUNT\`
+**🔀 Channels:** \`$CHANNELS_TOTAL\` (\`$CHANNELS_EXT\` ext, \`$CHANNELS_STD\` std)
+**❤️‍🔥 Hashrate:** \`${pretty_hashrate%% *}\` ${pretty_hashrate#* }${client_summary}
 
 MSGEOF
 )

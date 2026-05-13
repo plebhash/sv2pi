@@ -51,10 +51,10 @@ When `pool-monitor.sh` posts automated Discord reports, keep the message compact
 - Do not include implementation/status footer text such as `Auto-report • no AI tokens`.
 - Do not include a visible attachment-label line such as `pool-hashrate.png attached`; attach the PNG silently.
 - Use bold labels for top-level fields and inline-code formatting for values:
-  - `**Uptime:** \`2d 16h 38m\``
-  - `**Clients:** \`3\``
-  - `**Channels:** \`1\` (\`1\` ext, \`0\` std)`
-  - `**Hashrate:** \`6.75\` TH/s`
+  - `**⏳ Uptime:** \`2d 16h 38m\``
+  - `**🧑‍🤝‍🧑 Clients:** \`3\``
+  - `**🔀 Channels:** \`1\` (\`1\` ext, \`0\` std)`
+  - `**❤️‍🔥 Hashrate:** \`6.75\` TH/s`
 - For client/channel detail rows, wrap IDs, counts, numeric values, and identities in inline code while leaving units and labels readable:
   - `• 👤 Client \`109\`: \`1\` ch (\`1\` ext, \`0\` std) | \`6.75\` TH/s`
   - `      └─ Ch \`2\` (ext): \`6.75\` TH/s | \`BadAssBassDad.translator-proxy\``
