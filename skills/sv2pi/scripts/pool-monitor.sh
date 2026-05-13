@@ -141,7 +141,7 @@ build_discord_client_summary() {
         local client_hr_fmt channels channel_lines channel_count displayed_count
         client_hr_fmt=$(format_hashrate "$client_hr")
         client_lines="${client_lines}
-• Client \`${client_id}\`: \`${total_ch}\` ch (\`${ext_count}\` ext, \`${std_count}\` std) | \`${client_hr_fmt%% *}\` ${client_hr_fmt#* }"
+• 👤 Client \`${client_id}\`: \`${total_ch}\` ch (\`${ext_count}\` ext, \`${std_count}\` std) | \`${client_hr_fmt%% *}\` ${client_hr_fmt#* }"
 
         channels=$(curl -s "${MAINNET_API}/clients/${client_id}/channels" 2>/dev/null || echo '{}')
         channel_count=$(echo "$channels" | jq -r '((.total_extended // 0) + (.total_standard // 0))')
@@ -189,7 +189,7 @@ ${channel_lines}"
     fi
     if [ "$idle_count" -gt 0 ]; then
         client_lines="${client_lines}
-• (\`${idle_count}\` idle clients with \`0\` channels)"
+• 👻 (\`${idle_count}\` idle clients with \`0\` channels)"
     fi
 
     printf '%s' "$client_lines"

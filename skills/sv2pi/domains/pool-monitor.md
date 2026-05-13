@@ -56,9 +56,9 @@ When `pool-monitor.sh` posts automated Discord reports, keep the message compact
   - `**Channels:** \`1\` (\`1\` ext, \`0\` std)`
   - `**Hashrate:** \`6.75\` TH/s`
 - For client/channel detail rows, wrap IDs, counts, numeric values, and identities in inline code while leaving units and labels readable:
-  - `• Client \`109\`: \`1\` ch (\`1\` ext, \`0\` std) | \`6.75\` TH/s`
+  - `• 👤 Client \`109\`: \`1\` ch (\`1\` ext, \`0\` std) | \`6.75\` TH/s`
   - `      └─ Ch \`2\` (ext): \`6.75\` TH/s | shares \`12772\` | best diff \`482574091\` | \`BadAssBassDad.translator-proxy\``
-  - `• (\`2\` idle clients with \`0\` channels)`
+  - `• 👻 (\`2\` idle clients with \`0\` channels)`
 - Keep markdown simple for Discord rendering: bold labels, bullets, indentation, inline code; avoid tables.
 - The visual pattern is: labels and units are plain text, data values are inline-code. This makes live metrics scan like structured data without turning the report into a table.
 
