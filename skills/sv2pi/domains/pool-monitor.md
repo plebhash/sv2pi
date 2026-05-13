@@ -69,11 +69,11 @@ The scripts are designed to be invoked periodically via a systemd timer. Recomme
 
 ```ini
 [Unit]
-Description=Run SRI pool monitor every 2 hours
+Description=Run SRI pool monitor every 15 minutes
 
 [Timer]
 OnBootSec=5min
-OnUnitActiveSec=2h
+OnUnitActiveSec=15min
 AccuracySec=5min
 Persistent=true
 Unit=sv2pi-pool-monitor.service
@@ -82,7 +82,7 @@ Unit=sv2pi-pool-monitor.service
 WantedBy=timers.target
 ```
 
-**Note:** manual samples triggered during setup may produce close-together readings. This is normal — the steady-state interval is every 2 hours.
+**Note:** manual samples triggered during setup may produce close-together readings. This is normal — the steady-state sampling interval is every 15 minutes, while Discord posts stay at 2 hours (script-side throttle).
 
 Set the probe host explicitly in the user service environment when monitoring is not localhost-bound:
 

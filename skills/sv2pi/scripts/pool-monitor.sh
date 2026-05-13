@@ -12,6 +12,8 @@ INDEX_FILE="$MONITOR_DIR/index.md"
 DISCORD_CHANNEL_ID="${SV2PI_POOL_MONITOR_DISCORD_CHANNEL_ID:-1501133804058710116}"
 PICORD_ENV_FILE="${SV2PI_PICORD_ENV:-/home/sv2bot/.picord/.env}"
 DISCORD_POST_ENABLED="${SV2PI_POOL_MONITOR_DISCORD:-1}"
+DISCORD_INTERVAL_SECS="${SV2PI_POOL_MONITOR_DISCORD_INTERVAL_SECS:-7200}"
+DISCORD_LAST_POST_FILE="$MONITOR_DIR/.discord-last-post-epoch"
 POOL_CONFIG_FILE="${SV2PI_POOL_CONFIG_FILE:-$HOME/.sv2pi/pool/config/pool-config.toml}"
 
 if [ "${SV2PI_POOL_MONITOR_API_HOST:-}" = "0.0.0.0" ]; then
@@ -232,6 +234,20 @@ post_discord_summary() {
     command -v curl >/dev/null 2>&1 || return 0
     command -v jq >/dev/null 2>&1 || return 0
 
+    local now_epoch last_post_epoch elapsed
+    if [ "$DISCORD_INTERVAL_SECS" -gt 0 ] 2>/dev/null; then
+        now_epoch=$(date +%s)
+        if [ -s "$DISCORD_LAST_POST_FILE" ]; then
+            last_post_epoch=$(tr -d '[:space:]' < "$DISCORD_LAST_POST_FILE" || true)
+            if [ -n "$last_post_epoch" ] && [ "$last_post_epoch" -gt 0 ] 2>/dev/null; then
+                elapsed=$((now_epoch - last_post_epoch))
+                if [ "$elapsed" -lt "$DISCORD_INTERVAL_SECS" ]; then
+                    return 0
+                fi
+            fi
+        fi
+    fi
+
     local token=""
     token=$(python3 - "$PICORD_ENV_FILE" <<'PY'
 import sys
@@ -277,6 +293,8 @@ MSGEOF
     if [ "$http_code" != "200" ] && [ "$http_code" != "201" ]; then
         printf 'Discord post failed with HTTP %s\n' "$http_code" > /tmp/sv2pi-discord-post.log
         cat "$tmp_response" >> /tmp/sv2pi-discord-post.log 2>/dev/null || true
+    else
+        printf '%s\n' "${now_epoch:-$(date +%s)}" > "$DISCORD_LAST_POST_FILE"
     fi
     rm -f "$tmp_response"
 }
