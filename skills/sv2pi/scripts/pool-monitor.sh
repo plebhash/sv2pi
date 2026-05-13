@@ -138,20 +138,29 @@ build_discord_client_summary() {
             continue
         fi
 
-        local client_hr_fmt channels channel_lines channel_count
+        local client_hr_fmt channels channel_lines channel_count displayed_count
         client_hr_fmt=$(format_hashrate "$client_hr")
         client_lines="${client_lines}
 • Client \`${client_id}\`: \`${total_ch}\` ch (\`${ext_count}\` ext, \`${std_count}\` std) | \`${client_hr_fmt%% *}\` ${client_hr_fmt#* }"
 
         channels=$(curl -s "${MAINNET_API}/clients/${client_id}/channels" 2>/dev/null || echo '{}')
-        channel_count=0
+        channel_count=$(echo "$channels" | jq -r '((.total_extended // 0) + (.total_standard // 0))')
+        displayed_count=$channel_count
+        if [ "$displayed_count" -gt "$max_channels_per_client" ]; then
+            displayed_count=$max_channels_per_client
+        fi
         channel_lines=$(echo "$channels" | jq -r --argjson max "$max_channels_per_client" '
             ([.extended_channels[]? | {kind:"ext", id:.channel_id, hr:(.nominal_hashrate // 0), shares:(.shares_accepted // null), best:(.best_diff // null), user:(.user_identity // "")}] +
-             [.standard_channels[]? | {kind:"std", id:.channel_id, hr:(.nominal_hashrate // 0), shares:(.shares_accepted // null), best:(.best_diff // null), user:(.user_identity // "")}])[:$max][] |
-            [.id, .kind, .hr, (.shares // ""), (.best // ""), .user] | @tsv
-        ' | while IFS=$'\t' read -r ch_id ch_kind ch_hr ch_shares ch_best ch_user; do
+             [.standard_channels[]? | {kind:"std", id:.channel_id, hr:(.nominal_hashrate // 0), shares:(.shares_accepted // null), best:(.best_diff // null), user:(.user_identity // "")}])[:$max] |
+            to_entries[] |
+            [.key, .value.id, .value.kind, .value.hr, (.value.shares // ""), (.value.best // ""), .value.user] | @tsv
+        ' | while IFS=$'\t' read -r ch_idx ch_id ch_kind ch_hr ch_shares ch_best ch_user; do
             ch_hr_fmt=$(format_hashrate "$ch_hr")
-            line="      ├─ Ch \`${ch_id}\` (${ch_kind}): \`${ch_hr_fmt%% *}\` ${ch_hr_fmt#* }"
+            connector="├─"
+            if [ "$displayed_count" -gt 0 ] && [ "$ch_idx" -eq $((displayed_count - 1)) ] && [ "$channel_count" -le "$max_channels_per_client" ]; then
+                connector="└─"
+            fi
+            line="      ${connector} Ch \`${ch_id}\` (${ch_kind}): \`${ch_hr_fmt%% *}\` ${ch_hr_fmt#* }"
             if [ -n "$ch_shares" ]; then
                 line="${line} | shares \`${ch_shares}\`"
             fi
@@ -168,7 +177,6 @@ build_discord_client_summary() {
             client_lines="${client_lines}
 ${channel_lines}"
         fi
-        channel_count=$(echo "$channels" | jq -r '((.total_extended // 0) + (.total_standard // 0))')
         if [ "$channel_count" -gt "$max_channels_per_client" ]; then
             client_lines="${client_lines}
       └─ … $((channel_count - max_channels_per_client)) more channels"
