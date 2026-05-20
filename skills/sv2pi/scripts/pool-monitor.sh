@@ -213,7 +213,7 @@ ${channel_lines}"
             client_lines="${client_lines}
       └─ … $((channel_count - max_channels_per_client)) more channels"
         fi
-    done < <(echo "$POOL_CLIENTS" | jq -r '.items[]? | "\(.client_id)|\(.extended_channels_count // 0)|\(.standard_channels_count // 0)|\(.total_hashrate // 0)"')
+    done < <(echo "$POOL_CLIENTS" | jq -r '(.items // []) | sort_by(((.client_id // 0) | tonumber? // 0))[] | "\(.client_id)|\(.extended_channels_count // 0)|\(.standard_channels_count // 0)|\(.total_hashrate // 0)"')
 
     if [ "$active_count" -gt "$max_active" ]; then
         client_lines="${client_lines}
