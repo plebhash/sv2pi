@@ -83,8 +83,8 @@ def snap_ylim(rates, ticks):
 
 def format_xtick(x, _pos=None):
     dt = mdates.num2date(x, tz=timezone.utc)
-    if dt.hour == 0:
-        return dt.strftime("%d/%m\n%H:%M")
+    if dt.hour == 0 and dt.minute == 0:
+        return dt.strftime("%d/%m")
     return dt.strftime("%H:%M")
 
 
@@ -114,7 +114,7 @@ def main():
     fig.patch.set_facecolor(outer_bg_color)
     ax.set_facecolor(plot_bg_color)
 
-    ax.plot(times, rates, marker="o", linewidth=1.5, color=text_color)
+    ax.plot(times, rates, linewidth=0.8, color=text_color)
     ax.set_xlabel("Time (UTC)", color=text_color)
     ax.set_ylabel("Hashrate", color=text_color)
     ax.set_yscale("log")
@@ -126,13 +126,20 @@ def main():
     ax.set_ylim(ymin, ymax)
 
     ax.xaxis.set_major_locator(
-        mdates.HourLocator(byhour=list(range(0, 24, 4)), tz=timezone.utc)
+        mdates.HourLocator(byhour=list(range(0, 24, 8)), tz=timezone.utc)
     )
     ax.xaxis.set_major_formatter(FuncFormatter(format_xtick))
     ax.set_xlim(times[0], times[-1])
-    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", color=date_color)
+    plt.setp(
+        ax.get_xticklabels(minor=False),
+        rotation=45,
+        ha="right",
+        color=date_color,
+        fontsize=6,
+    )
+
     ax.tick_params(axis="y", colors=rate_color)
-    ax.tick_params(axis="x", colors=date_color)
+    ax.tick_params(axis="x", which="major", colors=date_color)
 
     title_date = last_time.strftime("%d/%m")
     title_time = last_time.strftime("%H:%M")
@@ -153,6 +160,13 @@ def main():
     y_pos = 1.04
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
+
+    for label in ax.get_xticklabels():
+        if "/" in label.get_text():
+            label.set_color(text_color)
+        else:
+            label.set_color(date_color)
+
     ax_bbox = ax.get_window_extent(renderer=renderer)
     y_pix = ax.transAxes.transform((0, y_pos))[1]
 
